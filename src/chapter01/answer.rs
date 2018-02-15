@@ -4,9 +4,8 @@ pub fn reverse_str(original: &str) -> String {
     let mut reversed = String::new();
     if original.len() > 0 {
         let mut char_array = original.chars().collect::<Vec<char>>();
-        char_array.reverse();
-        for i in 0..char_array.len() {
-            reversed.push(char_array[i]);
+        while let Some(top) = char_array.pop() {
+            reversed.push(top);
         }
     }
     return reversed;
@@ -41,7 +40,7 @@ mod tests {
     use chapter01::answer;
 
     #[test]
-    fn success_reverse_str() {
+    fn success_00_reverse_str() {
         let original = "hoge";
         let expected = "egoh";
         assert_eq!(expected, answer::reverse_str(original));
@@ -56,7 +55,7 @@ mod tests {
     }
 
     #[test]
-    fn success_mix_two_str() {
+    fn success_01_mix_two_str() {
         let original_1 = "パトカー";
         let original_2 = "タクシー";
         let expected = "パタトクカシーー";
