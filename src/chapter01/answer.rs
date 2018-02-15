@@ -15,9 +15,9 @@ pub fn reverse_str(original: &str) -> String {
 pub fn odd_idx_str(original: &str) -> String {
     let mut transformed = String::new();
     let char_array = original.chars().collect::<Vec<char>>();
-    for i in 0..char_array.len() {
+    for (i, &x) in char_array.iter().enumerate() {
         if i % 2 == 0 {
-            transformed.push(char_array[i]);
+            transformed.push(x);
         }
     }
     return transformed;
