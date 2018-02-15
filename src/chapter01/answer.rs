@@ -11,7 +11,19 @@ pub fn reverse_str(original: &str) -> String {
     return reversed;
 }
 
-// ch01-01 「パタトクカシーー」
+// ch01-01 「パタトクカシーー」 -> 「パトカー」
+pub fn odd_idx_str(original: &str) -> String {
+    let mut transformed = String::new();
+    let char_array = original.chars().collect::<Vec<char>>();
+    for i in 0..char_array.len() {
+        if i % 2 == 0 {
+            transformed.push(char_array[i]);
+        }
+    }
+    return transformed;
+}
+
+// ch01-02 「パトカー」＋「タクシー」＝「パタトクカシーー」
 pub fn mix_two_str(first_str: &str, second_str: &str) -> String {
     // TODO how to handle arrays if they don't have same length? error?
     let mut mixed = String::new();
@@ -23,11 +35,20 @@ pub fn mix_two_str(first_str: &str, second_str: &str) -> String {
         loop {
             let first_option = first_chars_itr.next();
             let second_option = second_chars_itr.next();
+            let mut first_done = false;
+            let mut second_done = false;
             if let Some(top) = first_option {
                 mixed.push(*top);
+            } else {
+                first_done = true;
             }
             if let Some(top) = second_option {
                 mixed.push(*top);
+            } else {
+                second_done = true;
+            }
+            if first_done && second_done {
+                break;
             }
         }
     }
@@ -55,7 +76,18 @@ mod tests {
     }
 
     #[test]
-    fn success_01_mix_two_str() {
+    fn success_01_odd_idx_str() {
+        let original = "パタトクカシーー";
+        let expected = "パトカー";
+        assert_eq!(expected, answer::odd_idx_str(original));
+
+        let original1 = "ほげほ";
+        let expected1 = "ほほ";
+        assert_eq!(expected1, answer::odd_idx_str(original1));
+    }
+
+    #[test]
+    fn success_02_mix_two_str() {
         let original_1 = "パトカー";
         let original_2 = "タクシー";
         let expected = "パタトクカシーー";
