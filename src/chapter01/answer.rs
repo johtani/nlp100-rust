@@ -1,3 +1,5 @@
+use std::collections::BTreeMap;
+
 // ch01 準備運動 - http://www.cl.ecei.tohoku.ac.jp/nlp100/#ch1
 // ch01-00 文字列の逆順
 pub fn reverse_str(original: &str) -> String {
@@ -55,7 +57,20 @@ pub fn mix_two_str(first_str: &str, second_str: &str) -> String {
     return mixed;
 }
 
+// ch01-03 円周率
+pub fn pi(original: &str) -> Vec<usize> {
+    let mut word_lengths = Vec::new();
+    // TODO how to handle "."?
+    let words_tmp = original.split_whitespace().collect::<Vec<&str>>();
+    for word in words_tmp {
+        let word_chars = word.chars().filter(
+            |x| x.is_alphabetic()).collect::<Vec<char>>();
+        word_lengths.push(word_chars.len());
+    }
+    return word_lengths;
+}
 
+// -- Unit test -----
 #[cfg(test)]
 mod tests {
     use chapter01::answer;
@@ -103,6 +118,18 @@ mod tests {
         let expected2 = "パタトクカシ！！";
         assert_eq!(expected2, answer::mix_two_str(original2_1, original2_2));
 
+    }
+
+    #[test]
+    fn success_03_pi() {
+        let original = "Now I need a drink, alcoholic of course, after the heavy lectures involving quantum mechanics.";
+        let expected: Vec<usize> = vec![3, 1, 4, 1, 5, 9, 2, 6, 5, 3, 5, 8, 9, 7, 9];
+        assert_eq!(expected, answer::pi(original));
+
+        let original1 = "This is    a \
+        pen...";
+        let expected1 = vec![4, 2, 1, 3];
+        assert_eq!(expected1, answer::pi(original1));
     }
 
 }
