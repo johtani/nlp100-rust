@@ -6,3 +6,6 @@ authors = ["Jun Ohtani <johtani@gmail.com>"]
 [dependencies]
 log = "0.3"
 env_logger = "*"
+serde = "*"
+serde_json = "*"
+serde_derive = "*"

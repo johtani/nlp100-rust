@@ -70,10 +70,52 @@ pub fn pi(original: &str) -> Vec<usize> {
     return word_lengths;
 }
 
+// ch01-04 元素記号
+pub fn chemical_symbols(sentence: &str, idx_one_symbols: Vec<usize>) -> BTreeMap<String, usize> {
+    // FIXME how to handle unsorted idx_one_symbols? we should sort it first?
+    let mut symbols: BTreeMap<String, usize> = BTreeMap::new();
+    let words_tmp = sentence.split_whitespace().collect::<Vec<&str>>();
+    if let Some(last) = idx_one_symbols.last() {
+        if words_tmp.len() < *last {
+            error!("idx_one_symbols has # of word [{}] in sentence < last [{}]", words_tmp.len(), last);
+        } else {
+            for (i, word) in words_tmp.iter().enumerate() {
+                let idx = i + 1;
+                match idx_one_symbols.contains(&idx) {
+                    true => {
+                        if let Some(first) = word.chars().next() {
+                            symbols.insert(first.to_string(), idx);
+                        } else {
+                            // FIXME how to handle it? error?
+                            error!("0 length word...");
+                        }
+                    },
+                    false => {
+                        let chars = word.chars().collect::<Vec<char>>();
+                        if chars.len() < 2 {
+                            error!("word[{}] is short...", word);
+                        } else {
+                            let mut symbol = String::new();
+                            for x in chars[0..2].iter() {
+                                symbol.push(*x);
+                            }
+                            symbols.insert(symbol, idx);
+                        }
+                    }
+                }
+            }
+        }
+    } else {
+        error!("idx_one_symbols has no elements...");
+    }
+    return symbols;
+}
+
 // -- Unit test -----
 #[cfg(test)]
 mod tests {
     use chapter01::answer;
+    use std::collections::BTreeMap;
 
     #[test]
     fn success_00_reverse_str() {
@@ -132,4 +174,25 @@ mod tests {
         assert_eq!(expected1, answer::pi(original1));
     }
 
+    #[test]
+    fn success_04_symbol_of_element() {
+        let original = "Hi He Lied Because Boron Could Not Oxidize Fluorine. New Nations Might Also Sign Peace Security Clause. Arthur King Can.";
+        let idx_one_symbols: Vec<usize> = vec![1, 5, 6, 7, 8, 9, 15, 16, 19];
+        let expected_vec = vec!["H", "He", "Li", "Be", "B", "C", "N", "O", "F", "Ne", "Na", "Mi", "Al", "Si", "P", "S", "Cl", "Ar", "K", "Ca"];
+        let mut expected = BTreeMap::new();
+        for (i, symbol) in expected_vec.iter().enumerate() {
+            let idx = i + 1;
+            expected.insert(symbol.to_string(), idx);
+        }
+
+        let actual = answer::chemical_symbols(original, idx_one_symbols);
+        assert_eq!(expected.keys().len(), actual.keys().len());
+        for i in 0..actual.keys().len() {
+            assert_eq!(expected.keys().nth(i), actual.keys().nth(i));
+        }
+        for key in actual.keys() {
+            assert_eq!(expected.get(key), actual.get(key));
+        }
+
+    }
 }
