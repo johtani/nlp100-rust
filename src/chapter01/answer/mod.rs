@@ -111,6 +111,19 @@ pub fn chemical_symbols(sentence: &str, idx_one_symbols: Vec<usize>) -> BTreeMap
     return symbols;
 }
 
+// ch01-05 n-gram - word
+pub fn word_ngram(text: &str, n: i32) -> Vec<String> {
+    let tokens = Vec::new();
+    error!("Not implemented");
+    return tokens;
+}
+// ch01-05 n-gram - char ]
+pub fn char_ngram(text: &str, n: i32) -> Vec<String> {
+    let tokens = Vec::new();
+    error!("Not implemented");
+    return tokens;
+}
+
 // -- Unit test -----
 #[cfg(test)]
 mod tests {
@@ -193,6 +206,10 @@ mod tests {
         for key in actual.keys() {
             assert_eq!(expected.get(key), actual.get(key));
         }
+    }
 
+    #[test]
+    fn success_05_ngram() {
+        let original = "I am an NLPer";
     }
 }
