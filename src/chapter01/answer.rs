@@ -127,7 +127,7 @@ pub fn word_ngram(text: &str, n: usize) -> Vec<Vec<String>> {
     }
     return tokens;
 }
-// ch01-05 n-gram - char ]
+// ch01-05 n-gram - char
 pub fn char_ngram(text: &str, n: usize) -> Vec<String> {
     let mut tokens = Vec::new();
     if n < 1 {
