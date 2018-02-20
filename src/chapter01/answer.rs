@@ -112,15 +112,40 @@ pub fn chemical_symbols(sentence: &str, idx_one_symbols: Vec<usize>) -> BTreeMap
 }
 
 // ch01-05 n-gram - word
-pub fn word_ngram(text: &str, n: i32) -> Vec<String> {
-    let tokens = Vec::new();
-    error!("Not implemented");
+pub fn word_ngram(text: &str, n: usize) -> Vec<Vec<String>> {
+    let mut tokens = Vec::new();
+    if n < 1 {
+        warn!("n must be n >= 1");
+        return tokens;
+    } else if text.is_empty() {
+        warn!("text is empty");
+        return tokens;
+    }
+    let words = text.split_whitespace().map(|x| x.to_string()).collect::<Vec<String>>();
+    for window in words.windows(n) {
+        tokens.push(window.to_vec());
+    }
     return tokens;
 }
 // ch01-05 n-gram - char ]
-pub fn char_ngram(text: &str, n: i32) -> Vec<String> {
-    let tokens = Vec::new();
-    error!("Not implemented");
+pub fn char_ngram(text: &str, n: usize) -> Vec<String> {
+    let mut tokens = Vec::new();
+    if n < 1 {
+        warn!("n must be n >= 1");
+        return tokens;
+    } else if text.is_empty() {
+        warn!("text is empty");
+        return tokens;
+    }
+    let chars = text.chars().collect::<Vec<char>>();
+    for window in chars.windows(n) {
+        let mut token = String::new();
+        // TODO Not sure why window.map(|x|...) is an error...
+        for ch in window {
+            token.push(*ch);
+        }
+        tokens.push(token);
+    }
     return tokens;
 }
 
@@ -199,17 +224,23 @@ mod tests {
         }
 
         let actual = answer::chemical_symbols(original, idx_one_symbols);
-        assert_eq!(expected.keys().len(), actual.keys().len());
-        for i in 0..actual.keys().len() {
-            assert_eq!(expected.keys().nth(i), actual.keys().nth(i));
-        }
-        for key in actual.keys() {
-            assert_eq!(expected.get(key), actual.get(key));
-        }
+        assert_eq!(expected, actual);
+        // FIXME add failure test case
     }
 
     #[test]
     fn success_05_ngram() {
         let original = "I am an NLPer";
+        let n = 2;
+        let expected_word_tokens: Vec<Vec<&str>> = vec![
+            vec!["I", "am"], vec!["am", "an"], vec!["an", "NLPer"]
+        ];
+        let actual_word_tokens = answer::word_ngram(original, n);
+        assert_eq!(expected_word_tokens, actual_word_tokens);
+
+        // char_ngram
+        let expected_char_tokens: Vec<&str> = vec!["I ", " a", "am", "m ", " a", "an", "n ", " N", "NL", "LP", "Pe", "er"];
+        let actual_char_tokens = answer::char_ngram(original, n);
+        assert_eq!(expected_char_tokens, actual_char_tokens);
     }
 }
