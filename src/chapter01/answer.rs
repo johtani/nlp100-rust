@@ -25,31 +25,14 @@ pub fn odd_idx_str(original: &str) -> String {
 // ch01-02 「パトカー」＋「タクシー」＝「パタトクカシーー」
 pub fn mix_two_str(first_str: &str, second_str: &str) -> String {
     // TODO how to handle arrays if they don't have same length? error?
-    let mut mixed = String::new();
-    if first_str.len() > 0 && second_str.len() > 0 {
-        let first_chars = first_str.chars().collect::<Vec<char>>();
-        let second_chars = second_str.chars().collect::<Vec<char>>();
-        let mut first_chars_itr = first_chars.iter();
-        let mut second_chars_itr = second_chars.iter();
-        loop {
-            let first_option = first_chars_itr.next();
-            let second_option = second_chars_itr.next();
-            let mut first_done = false;
-            let mut second_done = false;
-            if let Some(top) = first_option {
-                mixed.push(*top);
-            } else {
-                first_done = true;
-            }
-            if let Some(top) = second_option {
-                mixed.push(*top);
-            } else {
-                second_done = true;
-            }
-            if first_done && second_done {
-                break;
-            }
-        }
+    let mut mixed = String::from_iter(
+        first_str.chars().zip(second_str.chars())
+            .map(|(x, y)| format!("{}{}", x, y))
+    );
+    if first_str.chars().count() > second_str.chars().count() {
+        first_str.chars().skip(second_str.chars().count()).for_each(|x| mixed.push(x));
+    } else if second_str.chars().count() > first_str.chars().count() {
+        second_str.chars().skip(first_str.chars().count()).for_each(|x| mixed.push(x));
     }
     return mixed;
 }
