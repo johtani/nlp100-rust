@@ -1,8 +1,8 @@
 #[macro_use]
 extern crate log;
 extern crate env_logger;
-extern crate serde_json;
 extern crate nlp100_rust;
+extern crate serde_json;
 
 use nlp100_rust::chapter01::answer;
 use std::collections::BTreeMap;
@@ -16,67 +16,125 @@ fn main() {
     // 00
     let orig00 = "stressed";
     println!("---- 00 Reverse characters");
-    println!("reverse_str(\"{}\") -> {}", orig00, answer::reverse_str(orig00));
+    println!(
+        "reverse_str(\"{}\") -> {}",
+        orig00,
+        answer::reverse_str(orig00)
+    );
 
     // 01
     let orig01 = "パタトクカシーー";
     println!("---- 01 Odd index characters");
-    println!("odd_idx_str(\"{}\") -> {}", orig01, answer::odd_idx_str(orig01));
+    println!(
+        "odd_idx_str(\"{}\") -> {}",
+        orig01,
+        answer::odd_idx_str(orig01)
+    );
 
     // 02
     let orig02_1 = "パトカー";
     let orig02_2 = "タクシー";
     println!("---- 02 Mix two string");
-    println!("mix_two_str(\"{}\", \"{}\") -> {}", orig02_1, orig02_2, answer::mix_two_str(orig02_1, orig02_2));
+    println!(
+        "mix_two_str(\"{}\", \"{}\") -> {}",
+        orig02_1,
+        orig02_2,
+        answer::mix_two_str(orig02_1, orig02_2)
+    );
 
     // 03
     let orig03 = "Now I need a drink, alcoholic of course, after the heavy lectures involving quantum mechanics.";
     println!("---- 03 Pi");
-    println!("pi(\"{}\") -> {}", orig03, format!("{:?}", &answer::pi(orig03)));
+    println!(
+        "pi(\"{}\") -> {}",
+        orig03,
+        format!("{:?}", &answer::pi(orig03))
+    );
 
     // 04
     let orig04 = "Hi He Lied Because Boron Could Not Oxidize Fluorine. New Nations Might Also Sign Peace Security Clause. Arthur King Can.";
     let idx_one_symbols: Vec<usize> = vec![1, 5, 6, 7, 8, 9, 15, 16, 19];
     println!("---- 04 Chemical Element");
-    println!("symbol_of_element(\"{}\", {}) -> ", orig04, format!("{:?}", &idx_one_symbols));
+    println!(
+        "symbol_of_element(\"{}\", {}) -> ",
+        orig04,
+        format!("{:?}", &idx_one_symbols)
+    );
     print_map_to_json(answer::chemical_symbols(orig04, idx_one_symbols));
 
     // 05
-    let orig05 ="I am an NLPer";
+    let orig05 = "I am an NLPer";
     println!("---- 05 N-gram (word, char)");
-    println!("word_ngram(\"{}\", 2) -> {}", orig05, format!("{:?}", &answer::word_ngram(orig05, 2)));
-    println!("char_ngram(\"{}\", 2) -> {}", orig05, format!("{:?}", &answer::char_ngram(orig05, 2)));
+    println!(
+        "word_ngram(\"{}\", 2) -> {}",
+        orig05,
+        format!("{:?}", &answer::word_ngram(orig05, 2))
+    );
+    println!(
+        "char_ngram(\"{}\", 2) -> {}",
+        orig05,
+        format!("{:?}", &answer::char_ngram(orig05, 2))
+    );
 
     // 06
     let orig06_1 = "paraparaparadise";
     let orig06_2 = "paragraph";
     println!("---- 06 Set (Union, Intersection, Difference, Include check)");
-    println!("union -> {}", format!("{:?}", &answer::union_ngram_sets(
-        answer::char_ngram_set(orig06_1, 2),
-        &answer::char_ngram_set(orig06_2, 2)
-    )));
-    println!("intersection -> {}", format!("{:?}", &answer::intersection_ngram_sets(
-        answer::char_ngram_set(orig06_1, 2),
-        &answer::char_ngram_set(orig06_2, 2)
-    )));
-    println!("difference X - Y -> {}", format!("{:?}", &answer::difference_ngram_sets(
-        answer::char_ngram_set(orig06_1, 2),
-        &answer::char_ngram_set(orig06_2, 2)
-    )));
-    println!("difference Y - X -> {}", format!("{:?}", &answer::difference_ngram_sets(
-        answer::char_ngram_set(orig06_2, 2),
-        &answer::char_ngram_set(orig06_1, 2)
-    )));
+    println!(
+        "union -> {}",
+        format!(
+            "{:?}",
+            &answer::union_ngram_sets(
+                answer::char_ngram_set(orig06_1, 2),
+                &answer::char_ngram_set(orig06_2, 2)
+            )
+        )
+    );
+    println!(
+        "intersection -> {}",
+        format!(
+            "{:?}",
+            &answer::intersection_ngram_sets(
+                answer::char_ngram_set(orig06_1, 2),
+                &answer::char_ngram_set(orig06_2, 2)
+            )
+        )
+    );
+    println!(
+        "difference X - Y -> {}",
+        format!(
+            "{:?}",
+            &answer::difference_ngram_sets(
+                answer::char_ngram_set(orig06_1, 2),
+                &answer::char_ngram_set(orig06_2, 2)
+            )
+        )
+    );
+    println!(
+        "difference Y - X -> {}",
+        format!(
+            "{:?}",
+            &answer::difference_ngram_sets(
+                answer::char_ngram_set(orig06_2, 2),
+                &answer::char_ngram_set(orig06_1, 2)
+            )
+        )
+    );
 
-    println!("\"{}\" contains \"se\"? -> {}", orig06_1, answer::char_ngram_set(orig06_1, 2).contains("se"));
-    println!("\"{}\" contains \"se\"? -> {}", orig06_2, answer::char_ngram_set(orig06_2, 2).contains("se"));
-
+    println!(
+        "\"{}\" contains \"se\"? -> {}",
+        orig06_1,
+        answer::char_ngram_set(orig06_1, 2).contains("se")
+    );
+    println!(
+        "\"{}\" contains \"se\"? -> {}",
+        orig06_2,
+        answer::char_ngram_set(orig06_2, 2).contains("se")
+    );
 
     // Chapter 02
     //println!("-- Chapter01");
     //println!("---- 01 Mix two string");
-
-
 }
 
 fn print_map_to_json(map: BTreeMap<String, usize>) {

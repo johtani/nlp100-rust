@@ -14,14 +14,12 @@ pub fn reverse_str(original: &str) -> String {
 
 // ch01-01 「パタトクカシーー」 -> 「パトカー」
 pub fn odd_idx_str(original: &str) -> String {
-    let mut transformed = String::new();
-    let char_array = original.chars().collect::<Vec<char>>();
-    for (i, &x) in char_array.iter().enumerate() {
-        if i % 2 == 0 {
-            transformed.push(x);
-        }
-    }
-    return transformed;
+    let iter = original
+        .chars()
+        .enumerate()
+        .filter(|(i, _x)| i % 2 == 0)
+        .map(|(_i, x)| x);
+    String::from_iter(iter)
 }
 
 // ch01-02 「パトカー」＋「タクシー」＝「パタトクカシーー」
@@ -62,8 +60,10 @@ pub fn pi(original: &str) -> Vec<usize> {
     // TODO how to handle "."?
     let words_tmp = original.split_whitespace().collect::<Vec<&str>>();
     for word in words_tmp {
-        let word_chars = word.chars().filter(
-            |x| x.is_alphabetic()).collect::<Vec<char>>();
+        let word_chars = word
+            .chars()
+            .filter(|x| x.is_alphabetic())
+            .collect::<Vec<char>>();
         word_lengths.push(word_chars.len());
     }
     return word_lengths;
@@ -76,7 +76,11 @@ pub fn chemical_symbols(sentence: &str, idx_one_symbols: Vec<usize>) -> BTreeMap
     let words_tmp = sentence.split_whitespace().collect::<Vec<&str>>();
     if let Some(last) = idx_one_symbols.last() {
         if words_tmp.len() < *last {
-            error!("idx_one_symbols has # of word [{}] in sentence < last [{}]", words_tmp.len(), last);
+            error!(
+                "idx_one_symbols has # of word [{}] in sentence < last [{}]",
+                words_tmp.len(),
+                last
+            );
         } else {
             for (i, word) in words_tmp.iter().enumerate() {
                 let idx = i + 1;
@@ -88,7 +92,7 @@ pub fn chemical_symbols(sentence: &str, idx_one_symbols: Vec<usize>) -> BTreeMap
                             // FIXME how to handle it? error?
                             error!("0 length word...");
                         }
-                    },
+                    }
                     false => {
                         let chars = word.chars().collect::<Vec<char>>();
                         if chars.len() < 2 {
@@ -129,7 +133,10 @@ pub fn word_ngram(text: &str, n: usize) -> Vec<Vec<String>> {
     if invalid_n(text, n) {
         return tokens;
     }
-    let words = text.split_whitespace().map(|x| x.to_string()).collect::<Vec<String>>();
+    let words = text
+        .split_whitespace()
+        .map(|x| x.to_string())
+        .collect::<Vec<String>>();
     for window in words.windows(n) {
         tokens.push(window.to_vec());
     }
@@ -172,16 +179,34 @@ pub fn char_ngram_set(text: &str, n: usize) -> BTreeSet<String> {
 }
 
 // char01-06 union
-pub fn union_ngram_sets(source_set: BTreeSet<String>, target_set: &BTreeSet<String>) -> BTreeSet<String> {
-    return source_set.union(target_set).cloned().collect::<BTreeSet<String>>();
+pub fn union_ngram_sets(
+    source_set: BTreeSet<String>,
+    target_set: &BTreeSet<String>,
+) -> BTreeSet<String> {
+    return source_set
+        .union(target_set)
+        .cloned()
+        .collect::<BTreeSet<String>>();
 }
 // char01-06 intersection
-pub fn intersection_ngram_sets(source_set: BTreeSet<String>, target_set: &BTreeSet<String>) -> BTreeSet<String> {
-    return source_set.intersection(target_set).cloned().collect::<BTreeSet<String>>();
+pub fn intersection_ngram_sets(
+    source_set: BTreeSet<String>,
+    target_set: &BTreeSet<String>,
+) -> BTreeSet<String> {
+    return source_set
+        .intersection(target_set)
+        .cloned()
+        .collect::<BTreeSet<String>>();
 }
 // char01-06 difference source_set - target_set
-pub fn difference_ngram_sets(source_set: BTreeSet<String>, target_set: &BTreeSet<String>) -> BTreeSet<String> {
-    return source_set.difference(target_set).cloned().collect::<BTreeSet<String>>();
+pub fn difference_ngram_sets(
+    source_set: BTreeSet<String>,
+    target_set: &BTreeSet<String>,
+) -> BTreeSet<String> {
+    return source_set
+        .difference(target_set)
+        .cloned()
+        .collect::<BTreeSet<String>>();
 }
 
 // ch01-07
@@ -246,7 +271,6 @@ mod tests {
         let original2_2 = "タクシ";
         let expected2 = "パタトクカシ！！";
         assert_eq!(expected2, answer::mix_two_str(original2_1, original2_2));
-
     }
 
     #[test]
@@ -265,7 +289,10 @@ mod tests {
     fn success_04_symbol_of_element() {
         let original = "Hi He Lied Because Boron Could Not Oxidize Fluorine. New Nations Might Also Sign Peace Security Clause. Arthur King Can.";
         let idx_one_symbols: Vec<usize> = vec![1, 5, 6, 7, 8, 9, 15, 16, 19];
-        let expected_vec = vec!["H", "He", "Li", "Be", "B", "C", "N", "O", "F", "Ne", "Na", "Mi", "Al", "Si", "P", "S", "Cl", "Ar", "K", "Ca"];
+        let expected_vec = vec![
+            "H", "He", "Li", "Be", "B", "C", "N", "O", "F", "Ne", "Na", "Mi", "Al", "Si", "P", "S",
+            "Cl", "Ar", "K", "Ca",
+        ];
         let mut expected = BTreeMap::new();
         for (i, symbol) in expected_vec.iter().enumerate() {
             let idx = i + 1;
@@ -281,14 +308,15 @@ mod tests {
     fn success_05_ngram() {
         let original = "I am an NLPer";
         let n = 2;
-        let expected_word_tokens: Vec<Vec<&str>> = vec![
-            vec!["I", "am"], vec!["am", "an"], vec!["an", "NLPer"]
-        ];
+        let expected_word_tokens: Vec<Vec<&str>> =
+            vec![vec!["I", "am"], vec!["am", "an"], vec!["an", "NLPer"]];
         let actual_word_tokens = answer::word_ngram(original, n);
         assert_eq!(expected_word_tokens, actual_word_tokens);
 
         // char_ngram
-        let expected_char_tokens: Vec<&str> = vec!["I ", " a", "am", "m ", " a", "an", "n ", " N", "NL", "LP", "Pe", "er"];
+        let expected_char_tokens: Vec<&str> = vec![
+            "I ", " a", "am", "m ", " a", "an", "n ", " N", "NL", "LP", "Pe", "er",
+        ];
         let actual_char_tokens = answer::char_ngram(original, n);
         assert_eq!(expected_char_tokens, actual_char_tokens);
     }
@@ -301,34 +329,66 @@ mod tests {
         let expected1_values = vec!["ad", "ap", "ar", "di", "is", "pa", "ra", "se"];
         let expected2_values = vec!["ag", "ap", "ar", "gr", "pa", "ph", "ra"];
 
-        assert_eq!(expected1_values, answer::char_ngram_set(original1, 2).into_iter().collect::<Vec<String>>());
-        assert_eq!(expected2_values, answer::char_ngram_set(original2, 2).into_iter().collect::<Vec<String>>());
+        assert_eq!(
+            expected1_values,
+            answer::char_ngram_set(original1, 2)
+                .into_iter()
+                .collect::<Vec<String>>()
+        );
+        assert_eq!(
+            expected2_values,
+            answer::char_ngram_set(original2, 2)
+                .into_iter()
+                .collect::<Vec<String>>()
+        );
 
-        let expected_union = vec!["ad", "ag", "ap", "ar", "di", "gr", "is", "pa", "ph", "ra", "se"];
-        assert_eq!(expected_union, answer::union_ngram_sets(
-            answer::char_ngram_set(original1, 2),
-            &answer::char_ngram_set(original2, 2)
-        ).into_iter().collect::<Vec<String>>());
+        let expected_union = vec![
+            "ad", "ag", "ap", "ar", "di", "gr", "is", "pa", "ph", "ra", "se",
+        ];
+        assert_eq!(
+            expected_union,
+            answer::union_ngram_sets(
+                answer::char_ngram_set(original1, 2),
+                &answer::char_ngram_set(original2, 2)
+            )
+            .into_iter()
+            .collect::<Vec<String>>()
+        );
 
         let expected_intersection = vec!["ap", "ar", "pa", "ra"];
-        assert_eq!(expected_intersection, answer::intersection_ngram_sets(
-            answer::char_ngram_set(original1, 2),
-            &answer::char_ngram_set(original2, 2)
-        ).into_iter().collect::<Vec<String>>());
+        assert_eq!(
+            expected_intersection,
+            answer::intersection_ngram_sets(
+                answer::char_ngram_set(original1, 2),
+                &answer::char_ngram_set(original2, 2)
+            )
+            .into_iter()
+            .collect::<Vec<String>>()
+        );
 
         // origina1 - original2
         let expected_difference_1_minus_2 = vec!["ad", "di", "is", "se"];
-        assert_eq!(expected_difference_1_minus_2, answer::difference_ngram_sets(
-            answer::char_ngram_set(original1, 2),
-            &answer::char_ngram_set(original2, 2)
-        ).into_iter().collect::<Vec<String>>());
+        assert_eq!(
+            expected_difference_1_minus_2,
+            answer::difference_ngram_sets(
+                answer::char_ngram_set(original1, 2),
+                &answer::char_ngram_set(original2, 2)
+            )
+            .into_iter()
+            .collect::<Vec<String>>()
+        );
 
         // original2 - origina1
         let expected_difference_2_minus_1 = vec!["ag", "gr", "ph"];
-        assert_eq!(expected_difference_2_minus_1, answer::difference_ngram_sets(
-            answer::char_ngram_set(original2, 2),
-            &answer::char_ngram_set(original1, 2)
-        ).into_iter().collect::<Vec<String>>());
+        assert_eq!(
+            expected_difference_2_minus_1,
+            answer::difference_ngram_sets(
+                answer::char_ngram_set(original2, 2),
+                &answer::char_ngram_set(original1, 2)
+            )
+            .into_iter()
+            .collect::<Vec<String>>()
+        );
 
         // find "se" from each set
         assert_eq!(true, answer::char_ngram_set(original1, 2).contains("se"));
@@ -340,6 +400,9 @@ mod tests {
         let original_x = 0;
         let original_y = "y";
         let original_z = 2.0;
-        assert_eq!("0時のyは2.0", answer::generate_sentence(original_x, original_y, original_z));
+        assert_eq!(
+            "0時のyは2.0",
+            answer::generate_sentence(original_x, original_y, original_z)
+        );
     }
 }
