@@ -1,17 +1,15 @@
 use std::collections::BTreeMap;
 use std::collections::BTreeSet;
+use std::iter::FromIterator;
 
-// ch01 準備運動 - http://www.cl.ecei.tohoku.ac.jp/nlp100/#ch1
+// ch01 準備運動 - https://nlp100.github.io/ja/ch01.html
 // ch01-00 文字列の逆順
 pub fn reverse_str(original: &str) -> String {
-    let mut reversed = String::new();
     if original.len() > 0 {
-        let mut char_array = original.chars().collect::<Vec<char>>();
-        while let Some(top) = char_array.pop() {
-            reversed.push(top);
-        }
+        String::from_iter(original.chars().rev())
+    } else {
+        String::new()
     }
-    return reversed;
 }
 
 // ch01-01 「パタトクカシーー」 -> 「パトカー」
@@ -186,6 +184,20 @@ pub fn difference_ngram_sets(source_set: BTreeSet<String>, target_set: &BTreeSet
     return source_set.difference(target_set).cloned().collect::<BTreeSet<String>>();
 }
 
+// ch01-07
+pub fn generate_sentence(x: i32, y: &str, z: f32) -> String {
+    return format!("{}時の{}は{:?}", x, y, z);
+}
+
+// ch01-08
+pub fn encrypt_string(text: &str) -> String {
+    return String::from("Not Implemented");
+}
+
+pub fn cipher() -> String {
+    return String::from("Not Implemented");
+}
+
 // -- Unit test -----
 #[cfg(test)]
 mod tests {
@@ -321,5 +333,13 @@ mod tests {
         // find "se" from each set
         assert_eq!(true, answer::char_ngram_set(original1, 2).contains("se"));
         assert_eq!(false, answer::char_ngram_set(original2, 2).contains("se"));
+    }
+
+    #[test]
+    fn success_07_generate_sentence() {
+        let original_x = 0;
+        let original_y = "y";
+        let original_z = 2.0;
+        assert_eq!("0時のyは2.0", answer::generate_sentence(original_x, original_y, original_z));
     }
 }
