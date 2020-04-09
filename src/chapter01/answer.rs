@@ -48,17 +48,17 @@ pub fn mix_two_str(first_str: &str, second_str: &str) -> String {
 
 // ch01-03 円周率
 pub fn pi(original: &str) -> Vec<usize> {
-    let mut word_lengths = Vec::new();
     // TODO how to handle "."?
-    let words_tmp = original.split_whitespace().collect::<Vec<&str>>();
-    for word in words_tmp {
-        let word_chars = word
-            .chars()
-            .filter(|x| x.is_alphabetic())
-            .collect::<Vec<char>>();
-        word_lengths.push(word_chars.len());
-    }
-    return word_lengths;
+    original
+        .split_whitespace()
+        .map(|word|
+            word
+                .chars()
+                .filter(|x| x.is_alphabetic())
+                .collect::<Vec<char>>()
+                .len()
+        )
+        .collect::<Vec<usize>>()
 }
 
 // ch01-04 元素記号
