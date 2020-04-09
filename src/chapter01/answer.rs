@@ -26,13 +26,22 @@ pub fn odd_idx_str(original: &str) -> String {
 pub fn mix_two_str(first_str: &str, second_str: &str) -> String {
     // TODO how to handle arrays if they don't have same length? error?
     let mut mixed = String::from_iter(
-        first_str.chars().zip(second_str.chars())
-            .map(|(x, y)| format!("{}{}", x, y))
+        first_str
+            .chars()
+            .zip(second_str.chars())
+            .map(|(x, y)| format!("{}{}", x, y)),
     );
+    // adjust characters if the length is different
     if first_str.chars().count() > second_str.chars().count() {
-        first_str.chars().skip(second_str.chars().count()).for_each(|x| mixed.push(x));
+        first_str
+            .chars()
+            .skip(second_str.chars().count())
+            .for_each(|x| mixed.push(x));
     } else if second_str.chars().count() > first_str.chars().count() {
-        second_str.chars().skip(first_str.chars().count()).for_each(|x| mixed.push(x));
+        second_str
+            .chars()
+            .skip(first_str.chars().count())
+            .for_each(|x| mixed.push(x));
     }
     return mixed;
 }
