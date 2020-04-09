@@ -51,13 +51,12 @@ pub fn pi(original: &str) -> Vec<usize> {
     // TODO how to handle "."?
     original
         .split_whitespace()
-        .map(|word|
-            word
-                .chars()
+        .map(|word| {
+            word.chars()
                 .filter(|x| x.is_alphabetic())
                 .collect::<Vec<char>>()
                 .len()
-        )
+        })
         .collect::<Vec<usize>>()
 }
 
