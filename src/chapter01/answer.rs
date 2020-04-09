@@ -64,44 +64,17 @@ pub fn pi(original: &str) -> Vec<usize> {
 pub fn chemical_symbols(sentence: &str, idx_one_symbols: Vec<usize>) -> BTreeMap<String, usize> {
     // FIXME how to handle unsorted idx_one_symbols? we should sort it first?
     let mut symbols: BTreeMap<String, usize> = BTreeMap::new();
-    let words_tmp = sentence.split_whitespace().collect::<Vec<&str>>();
-    if let Some(last) = idx_one_symbols.last() {
-        if words_tmp.len() < *last {
-            error!(
-                "idx_one_symbols has # of word [{}] in sentence < last [{}]",
-                words_tmp.len(),
-                last
-            );
-        } else {
-            for (i, word) in words_tmp.iter().enumerate() {
-                let idx = i + 1;
-                match idx_one_symbols.contains(&idx) {
-                    true => {
-                        if let Some(first) = word.chars().next() {
-                            symbols.insert(first.to_string(), idx);
-                        } else {
-                            // FIXME how to handle it? error?
-                            error!("0 length word...");
-                        }
-                    }
-                    false => {
-                        let chars = word.chars().collect::<Vec<char>>();
-                        if chars.len() < 2 {
-                            error!("word[{}] is short...", word);
-                        } else {
-                            let mut symbol = String::new();
-                            for x in chars[0..2].iter() {
-                                symbol.push(*x);
-                            }
-                            symbols.insert(symbol, idx);
-                        }
-                    }
-                }
+    sentence
+        .split_whitespace()
+        .enumerate()
+        .for_each(|(idx, word)| {
+            let idx = idx + 1;
+            if idx_one_symbols.contains(&idx) {
+                symbols.insert(String::from_iter(word.chars().take(1)), idx);
+            } else {
+                symbols.insert(String::from_iter(word.chars().take(2)), idx);
             }
-        }
-    } else {
-        error!("idx_one_symbols has no elements...");
-    }
+        });
     return symbols;
 }
 
