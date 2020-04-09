@@ -78,67 +78,33 @@ pub fn chemical_symbols(sentence: &str, idx_one_symbols: Vec<usize>) -> BTreeMap
     return symbols;
 }
 
-// validation for ngrama
-fn invalid_n(text: &str, n: usize) -> bool {
-    if n < 1 {
-        warn!("n must be n >= 1");
-        return true;
-    } else if text.is_empty() {
-        warn!("text is empty");
-        return true;
-    } else {
-        return false;
-    }
-}
-
 // ch01-05 n-gram - word
 pub fn word_ngram(text: &str, n: usize) -> Vec<Vec<String>> {
-    let mut tokens = Vec::new();
-    if invalid_n(text, n) {
-        return tokens;
-    }
-    let words = text
+    return text
         .split_whitespace()
         .map(|x| x.to_string())
-        .collect::<Vec<String>>();
-    for window in words.windows(n) {
-        tokens.push(window.to_vec());
-    }
-    return tokens;
+        .collect::<Vec<String>>()
+        .windows(n)
+        .map(|x| Vec::from(x.to_vec()))
+        .collect::<Vec<Vec<String>>>();
 }
 
 // ch01-05 n-gram - char
 pub fn char_ngram(text: &str, n: usize) -> Vec<String> {
-    let mut tokens = Vec::new();
-    if invalid_n(text, n) {
-        return tokens;
-    }
-    let chars = text.chars().collect::<Vec<char>>();
-    for window in chars.windows(n) {
-        let mut token = String::new();
-        // TODO Not sure why window.map(|x|...) is an error...
-        for ch in window {
-            token.push(*ch);
-        }
-        tokens.push(token);
-    }
-    return tokens;
+    return text
+        .chars()
+        .collect::<Vec<char>>()
+        .windows(n)
+        .map(|x| String::from_iter(x.to_vec()))
+        .collect::<Vec<String>>();
 }
 
 // ch01-06 char bi-gram set operations
 pub fn char_ngram_set(text: &str, n: usize) -> BTreeSet<String> {
     let mut ngram_set = BTreeSet::new();
-    if invalid_n(text, n) {
-        return ngram_set;
-    }
-    let chars = text.chars().collect::<Vec<char>>();
-    for window in chars.windows(n) {
-        let mut token = String::new();
-        for ch in window {
-            token.push(*ch);
-        }
-        ngram_set.insert(token);
-    }
+    char_ngram(text, n).iter().for_each(|x| {
+        ngram_set.insert(x.to_string());
+    });
     return ngram_set;
 }
 
