@@ -163,23 +163,29 @@ pub fn cipher(text: &str) -> String {
 
 // ch01-09
 pub fn typoglycemia(text: &str) -> String {
-    return text.split_whitespace().map(|word| {
-        if word.len() <= 4 {
-            word.to_string()
-        } else {
-            let original = word.chars().collect::<Vec<char>>();
-            let first = original.get(0).unwrap();
-            let last = original.last().unwrap();
-            let mut typo =
-                original[1..original.len() - 1].iter().map(|x| x.clone()).collect::<Vec<char>>();
-            let mut rng = thread_rng();
-            typo.shuffle(&mut rng);
-            let mut typo = String::from_iter(typo.iter());
-            typo.insert(0,first.clone());
-            typo.push(last.clone());
-            typo
-        }
-    }).collect::<Vec<String>>().join(" ");
+    return text
+        .split_whitespace()
+        .map(|word| {
+            if word.len() <= 4 {
+                word.to_string()
+            } else {
+                let original = word.chars().collect::<Vec<char>>();
+                let first = original.get(0).unwrap();
+                let last = original.last().unwrap();
+                let mut typo = original[1..original.len() - 1]
+                    .iter()
+                    .map(|x| x.clone())
+                    .collect::<Vec<char>>();
+                let mut rng = thread_rng();
+                typo.shuffle(&mut rng);
+                let mut typo = String::from_iter(typo.iter());
+                typo.insert(0, first.clone());
+                typo.push(last.clone());
+                typo
+            }
+        })
+        .collect::<Vec<String>>()
+        .join(" ");
 }
 
 // -- Unit test -----
