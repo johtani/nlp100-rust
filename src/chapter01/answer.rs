@@ -1,3 +1,5 @@
+use rand::seq::SliceRandom;
+use rand::thread_rng;
 use std::collections::BTreeMap;
 use std::collections::BTreeSet;
 use std::iter::FromIterator;
@@ -147,27 +149,46 @@ pub fn generate_sentence(x: i32, y: &str, z: f32) -> String {
 
 // ch01-08
 pub fn cipher(text: &str) -> String {
-    return String::from_iter(
-    text.chars().map(
-        |x| {
-            if x.is_ascii_alphanumeric() && x.is_lowercase() {
-                let mut b = [0;2];
-                x.encode_utf8(&mut b);
-                b[0] = 219 - b[0];
-                char::from(b[0])
-            } else {
-                x
-            }
+    return String::from_iter(text.chars().map(|x| {
+        if x.is_ascii_alphanumeric() && x.is_lowercase() {
+            let mut b = [0; 2];
+            x.encode_utf8(&mut b);
+            b[0] = 219 - b[0];
+            char::from(b[0])
+        } else {
+            x
         }
-    ));
+    }));
+}
+
+// ch01-09
+pub fn typoglycemia(text: &str) -> String {
+    return text.split_whitespace().map(|word| {
+        if word.len() <= 4 {
+            word.to_string()
+        } else {
+            let original = word.chars().collect::<Vec<char>>();
+            let first = original.get(0).unwrap();
+            let last = original.last().unwrap();
+            let mut typo =
+                original[1..original.len() - 1].iter().map(|x| x.clone()).collect::<Vec<char>>();
+            let mut rng = thread_rng();
+            typo.shuffle(&mut rng);
+            let mut typo = String::from_iter(typo.iter());
+            typo.insert(0,first.clone());
+            typo.push(last.clone());
+            typo
+        }
+    }).collect::<Vec<String>>().join(" ");
 }
 
 // -- Unit test -----
 #[cfg(test)]
 mod tests {
     use chapter01::answer;
+    use chapter01::answer::{cipher, typoglycemia};
     use std::collections::BTreeMap;
-    use chapter01::answer::cipher;
+    use std::iter::FromIterator;
 
     #[test]
     fn success_00_reverse_str() {
@@ -351,5 +372,48 @@ mod tests {
         let original = "AaBbCc";
         let expected = "AzByCx";
         assert_eq!(expected, cipher(original));
+    }
+
+    #[test]
+    fn success_09_typoglycemia() {
+        let original = "I couldn’t believe that I could actually understand what I was reading : the phenomenal power of the human mind.";
+        let expected = [
+            "I",
+            "couldn’t",
+            "believe",
+            "that",
+            "I",
+            "could",
+            "actually",
+            "understand",
+            "what",
+            "I",
+            "was",
+            "reading",
+            ":",
+            "the",
+            "phenomenal",
+            "power",
+            "of",
+            "the",
+            "human",
+            "mind.",
+        ];
+        let actual = typoglycemia(original);
+        println!("[{}]", actual);
+        let check_tuple = expected.iter().zip(actual.split_whitespace());
+        for (expected, actual) in check_tuple {
+            if expected.len() <= 4 {
+                assert_eq!(*expected, actual);
+            } else {
+                assert_eq!(expected.len(), actual.len());
+                let expected_first = expected.chars().next().unwrap();
+                let expected_last = expected.chars().last().unwrap();
+                let actual_first = actual.chars().next().unwrap();
+                let actual_last = actual.chars().last().unwrap();
+                assert_eq!(expected_first, actual_first);
+                assert_eq!(expected_last, actual_last);
+            }
+        }
     }
 }

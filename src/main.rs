@@ -2,6 +2,7 @@
 extern crate log;
 extern crate env_logger;
 extern crate nlp100_rust;
+extern crate rand;
 extern crate serde_json;
 
 use nlp100_rust::chapter01::answer;
