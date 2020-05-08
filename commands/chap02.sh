@@ -24,7 +24,7 @@ echo "Chapter 2-11"
 ## sed command for macOS. If using Linux, use "\t" for tab character
 cat $INPUT_FILE_NAME | sed -e 's/	/ /g' > $OUTPUT_DIR/11_sed.txt
 ## tr command
-cat $INPUT_FILE_NAME | tr "\t" " " > $OUTPUT_DIR/11_tr.txt:q
+cat $INPUT_FILE_NAME | tr "\t" " " > $OUTPUT_DIR/11_tr.txt
 ## expand command
 expand -t 1 $INPUT_FILE_NAME > $OUTPUT_DIR/11_expand.txt
 
