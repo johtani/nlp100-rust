@@ -151,7 +151,7 @@ pub fn generate_sentence(x: i32, y: &str, z: f32) -> String {
 pub fn cipher(text: &str) -> String {
     return String::from_iter(text.chars().map(|x| {
         if x.is_ascii_alphanumeric() && x.is_lowercase() {
-            let mut b = [0; 2];
+            let mut b = [0; 4];
             x.encode_utf8(&mut b);
             b[0] = 219 - b[0];
             char::from(b[0])
