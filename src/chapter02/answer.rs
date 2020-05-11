@@ -87,49 +87,40 @@ pub fn split_files(
 ) {
     let total = word_count(input_file_name);
     let lines_in_file = total / num;
-    let mut current_lines: usize = 0;
-    let mut current_file_num: u8 = 1;
     let buf = BufReader::new(File::open(input_file_name).expect("file not found"));
-    let mut output_file_name = format!(
-        "{}{}{}",
-        output_file_prefix, current_file_num, output_file_suffix
-    );
+
+    let output_files: Vec<File> = create_file_vec(output_file_prefix, num, output_file_suffix);
 
     println!("split file each {} lines.", lines_in_file);
+    let mut lines = buf.lines();
 
-    let mut output_f: Option<&File> = None;
-
-    buf.lines().for_each(|line| {
-        if let None = output_f {
-            output_f = Some(
-                &OpenOptions::new()
-                    .write(true)
-                    .create(true)
-                    .open(output_file_name.as_str())
-                    .expect(
-                        format!("can't open file[{}] with write option", output_file_name).as_str(),
-                    ),
-            );
+    for mut output_f in output_files {
+        let mut current = 1;
+        while current < lines_in_file + 1 {
+            let line = lines.next();
+            if let Some(line_rs) = line {
+                if let Ok(line_str) = line_rs {
+                    writeln!(output_f, "{}", line_str);
+                }
+            }
+            current = current + 1;
         }
-        current_lines = current_lines + 1;
-        if let Some(mut file) = &output_f {
-            writeln!(file, "{}", line.expect("read line error"));
-            file.flush().expect("error during flush");
-        }
-        if current_lines >= lines_in_file {
-            println!("current is {}", current_lines);
-            current_file_num = current_file_num + 1;
-            output_file_name = format!(
-                "{}{}{}",
-                output_file_prefix, current_file_num, output_file_suffix
-            );
-            current_lines = 0;
-            output_f = None;
-        }
-    });
-    if let Some(file) = &output_f {
-        file.flush().expect("error during flush");
+        output_f.flush().expect("error during flush");
     }
+}
+
+fn create_file_vec(output_file_prefix: &str, num: usize, output_file_suffix: &str) -> Vec<File> {
+    let mut files = Vec::with_capacity(num);
+    for i in 0..num {
+        let output_file_name = format!("{}{}{}", output_file_prefix, i + 1, output_file_suffix);
+        let output_f = OpenOptions::new()
+            .write(true)
+            .create(true)
+            .open(output_file_name.as_str())
+            .expect(format!("can't open file[{}] with write option", output_file_name).as_str());
+        files.push(output_f);
+    }
+    return files;
 }
 
 // ch02-17 １列目の文字列の異なり
@@ -237,15 +228,19 @@ mod tests {
         let actual_prefix = format!("{}{}", TMP_PATH, "16_");
         let actual_suffix = ".txt";
 
+        for i in 0..N {
+            remove_file(format!("{}{}{}", actual_prefix.as_str(), i + 1, actual_suffix).as_str());
+        }
+
         split_files(INPUT_PATH, N, actual_prefix.as_str(), actual_suffix);
 
-        for i in 1..N + 1 {
+        for i in 0..N {
             let actual = read_file_as_string(
-                format!("{}{}{}", actual_prefix.as_str(), i, actual_suffix).as_str(),
+                format!("{}{}{}", actual_prefix.as_str(), i + 1, actual_suffix).as_str(),
             );
             let expected =
                 read_file_as_string(format!("{}{}", expected_prefix, suffixes[i]).as_str());
-            assert_eq!(expected, actual);
+            assert_eq!(expected, actual, "current file is {}", i + 1);
         }
     }
 }
