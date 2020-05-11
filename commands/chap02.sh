@@ -56,7 +56,6 @@ ls -l $OUTPUT_DIR/15.txt
 echo "-----------------------------"
 echo "Chapter 2-16"
 
-
 LINES=`cat $OUTPUT_DIR/10.txt`
 SPLIT_LINES=`echo $LINES/$N | bc`
 split -a 1 -l $SPLIT_LINES $INPUT_FILE_NAME $OUTPUT_DIR/16_

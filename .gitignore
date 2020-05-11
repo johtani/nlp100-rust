@@ -13,3 +13,5 @@ Cargo.lock
 
 /target/
 **/*.rs.bk
+
+data/chap02_tmp/**

@@ -3,7 +3,6 @@ use rand::thread_rng;
 use std::collections::BTreeMap;
 use std::collections::BTreeSet;
 use std::iter::FromIterator;
-use std::str::from_utf8;
 
 // ch01 準備運動 - https://nlp100.github.io/ja/ch01.html
 // ch01-00 文字列の逆順
@@ -194,7 +193,6 @@ mod tests {
     use chapter01::answer;
     use chapter01::answer::{cipher, typoglycemia};
     use std::collections::BTreeMap;
-    use std::iter::FromIterator;
 
     #[test]
     fn success_00_reverse_str() {
