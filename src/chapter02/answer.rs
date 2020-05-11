@@ -1,3 +1,4 @@
+use std::collections::{BTreeMap, HashSet};
 use std::fs::{File, OpenOptions};
 use std::io::{BufRead, BufReader, Read, Write};
 
@@ -85,8 +86,9 @@ pub fn split_files(
     output_file_prefix: &str,
     output_file_suffix: &str,
 ) {
-    let total = word_count(input_file_name);
-    let lines_in_file = total / num;
+    let total = word_count(input_file_name) as f64;
+    let lines_in_file = total / num as f64;
+    let lines_in_file = lines_in_file.ceil() as usize; //
     let buf = BufReader::new(File::open(input_file_name).expect("file not found"));
 
     let output_files: Vec<File> = create_file_vec(output_file_prefix, num, output_file_suffix);
@@ -124,6 +126,18 @@ fn create_file_vec(output_file_prefix: &str, num: usize, output_file_suffix: &st
 }
 
 // ch02-17 １列目の文字列の異なり
+pub fn count_uniq_words(input_file_name: &str, col: usize) -> usize {
+    let mut words = HashSet::new();
+    let buf = BufReader::new(File::open(input_file_name).expect("file not found"));
+    buf.lines().for_each(|line| match line {
+        Ok(line_str) => {
+            let columns: Vec<_> = line_str.split('\t').collect();
+            words.insert(columns[col].to_string());
+        }
+        Err(_) => panic!("parse error "),
+    });
+    return words.len();
+}
 
 // ch02-18 各行を3コラム目の数値の降順にソート
 
@@ -133,9 +147,10 @@ fn create_file_vec(output_file_prefix: &str, num: usize, output_file_suffix: &st
 #[cfg(test)]
 mod tests {
     use chapter02::answer::{
-        extract_column, head, merge_files, split_files, tab_2_space, tail, word_count,
+        count_uniq_words, extract_column, head, merge_files, split_files, tab_2_space, tail,
+        word_count,
     };
-    use std::fs::{remove_file, File};
+    use std::fs::{create_dir, remove_file, File};
     use std::io::{BufRead, BufReader, Read};
 
     const INPUT_PATH: &str = "data/popular-names.txt";
@@ -177,8 +192,9 @@ mod tests {
         let actual_file1 = format!("{}{}", TMP_PATH, "col1.txt");
         let actual_file2 = format!("{}{}", TMP_PATH, "col2.txt");
 
-        remove_file(actual_file1.as_str()).expect("error remove file");
-        remove_file(actual_file2.as_str()).expect("error remove file");
+        create_dir(TMP_PATH);
+        remove_file(actual_file1.as_str());
+        remove_file(actual_file2.as_str());
 
         extract_column(INPUT_PATH, 0, actual_file1.as_str());
         extract_column(INPUT_PATH, 1, actual_file2.as_str());
@@ -193,7 +209,11 @@ mod tests {
     #[test]
     fn success_13_merge_files() {
         let actual_file = format!("{}{}", TMP_PATH, "col12.txt");
-        remove_file(actual_file.as_str()).expect("error remove file");
+        create_dir(TMP_PATH);
+        remove_file(actual_file.as_str());
+
+        //make sure existing col1.txt and col2.txt
+        success_12_extract_column();
 
         merge_files(
             format!("{}{}", TMP_PATH, "col1.txt").as_str(),
@@ -228,6 +248,7 @@ mod tests {
         let actual_prefix = format!("{}{}", TMP_PATH, "16_");
         let actual_suffix = ".txt";
 
+        create_dir(TMP_PATH);
         for i in 0..N {
             remove_file(format!("{}{}{}", actual_prefix.as_str(), i + 1, actual_suffix).as_str());
         }
@@ -242,5 +263,17 @@ mod tests {
                 read_file_as_string(format!("{}{}", expected_prefix, suffixes[i]).as_str());
             assert_eq!(expected, actual, "current file is {}", i + 1);
         }
+    }
+
+    #[test]
+    fn success_17_count_uniq_words() {
+        let actual = count_uniq_words(INPUT_PATH, 0);
+        let expected: usize =
+            read_file_as_string(format!("{}{}", EXPECTED_PATH, "17.txt").as_str())
+                .trim()
+                .parse()
+                .expect("parse error");
+
+        assert_eq!(expected, actual);
     }
 }
