@@ -1,4 +1,5 @@
-use std::collections::{BTreeMap, HashSet};
+use std::cmp::Ordering;
+use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::fs::{File, OpenOptions};
 use std::io::{BufRead, BufReader, Read, Write};
 
@@ -140,15 +141,98 @@ pub fn count_uniq_words(input_file_name: &str, col: usize) -> usize {
 }
 
 // ch02-18 各行を3コラム目の数値の降順にソート
+pub fn sort_on_col3(input_file_name: &str) -> String {
+    let mut lines: BTreeSet<Line> = BTreeSet::new();
+    let buf = BufReader::new(File::open(input_file_name).expect("file not found"));
+    buf.lines().for_each(|line| match line {
+        Ok(line_str) => {
+            let columns: Vec<_> = line_str.split('\t').collect();
+            let num: u32 = columns[2].parse().expect("parse error");
+            let line = Line {
+                line: line_str,
+                num,
+            };
+            lines.insert(line);
+        }
+        Err(_) => panic!("parse error"),
+    });
+    let mut sorted = String::new();
+    lines.iter().for_each(|line| {
+        sorted.push_str(format!("{}\n", line.line).as_str());
+    });
+
+    return sorted;
+}
+
+#[derive(Eq)]
+struct Line {
+    line: String,
+    num: u32,
+}
+
+impl Ord for Line {
+    fn cmp(&self, other: &Self) -> Ordering {
+        let ord = other.num.cmp(&self.num);
+        if let Ordering::Equal = ord {
+            other.line.cmp(&self.line)
+        } else {
+            ord
+        }
+    }
+}
+
+impl PartialOrd for Line {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl PartialEq for Line {
+    fn eq(&self, other: &Self) -> bool {
+        self.eq(other)
+    }
+}
 
 // ch02-19 各行の1コラム目の文字列の出現頻度を求め，出現頻度の高い順に並べる
+pub fn sort_on_frequency(input_file_name: &str) -> String {
+    let mut names: HashMap<String, u32> = HashMap::new();
+    let buf = BufReader::new(File::open(input_file_name).expect("file not found"));
+    buf.lines().for_each(|line| match line {
+        Ok(line_str) => {
+            let columns: Vec<_> = line_str.split('\t').collect();
+            let name_str = columns[0].to_string();
+            let count = names.entry(name_str).or_insert(0);
+            *count += 1;
+        }
+        Err(_) => panic!("parse error"),
+    });
+    let mut sorted = String::new();
+    let mut sorted_names: Vec<(&String, &u32)> = names.iter().collect();
+    sorted_names.sort_by(|(aname, acount), (bname, bcount)| {
+        let ord = bcount.cmp(acount);
+        if let Ordering::Equal = ord {
+            bname.cmp(aname)
+        } else {
+            ord
+        }
+    });
+    sorted_names.iter().for_each(|(name, count)| {
+        sorted.push_str(format!("{} {}\n", count, name).as_str());
+    });
+    return sorted;
+}
+
+struct Name {
+    name: String,
+    count: u32,
+}
 
 // -- Unit test -----
 #[cfg(test)]
 mod tests {
     use chapter02::answer::{
-        count_uniq_words, extract_column, head, merge_files, split_files, tab_2_space, tail,
-        word_count,
+        count_uniq_words, extract_column, head, merge_files, sort_on_col3, sort_on_frequency,
+        split_files, tab_2_space, tail, word_count,
     };
     use std::fs::{create_dir, remove_file, File};
     use std::io::{BufRead, BufReader, Read};
@@ -273,7 +357,22 @@ mod tests {
                 .trim()
                 .parse()
                 .expect("parse error");
-
         assert_eq!(expected, actual);
+    }
+
+    #[test]
+    fn success_18_sort_on_col3() {
+        let actual = sort_on_col3(INPUT_PATH);
+        let expected = read_file_as_string(format!("{}{}", EXPECTED_PATH, "18.txt").as_str());
+        assert_eq!(expected, actual);
+    }
+
+    #[test]
+    fn success_19_sort_on_frequency() {
+        let actual = sort_on_frequency(INPUT_PATH);
+        println!("{}", actual);
+        let expected = read_file_as_string(format!("{}{}", EXPECTED_PATH, "19.txt").as_str());
+        // Don't worry about output format
+        assert_eq!(expected.replace(" ", ""), actual.replace(" ", ""));
     }
 }
