@@ -222,11 +222,6 @@ pub fn sort_on_frequency(input_file_name: &str) -> String {
     return sorted;
 }
 
-struct Name {
-    name: String,
-    count: u32,
-}
-
 // -- Unit test -----
 #[cfg(test)]
 mod tests {
