@@ -76,7 +76,7 @@ ls -l $OUTPUT_DIR/18.txt
 echo "-----------------------------"
 echo "Chapter 2-19"
 
-cat $INPUT_FILE_NAME | cut -f 1 | sort | uniq -c | sort > $OUTPUT_DIR/19.txt
+cat $INPUT_FILE_NAME | cut -f 1 | sort | uniq -c | sort -r > $OUTPUT_DIR/19.txt
 
 ls -l $OUTPUT_DIR/19.txt
 echo "Finished"
