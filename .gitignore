@@ -15,3 +15,5 @@ Cargo.lock
 **/*.rs.bk
 
 data/chap02_tmp/**
+/data/chap03/england.txt
+/data/chap03/england_newline.txt

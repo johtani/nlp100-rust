@@ -1,9 +1,10 @@
 use flate2::read::GzDecoder;
 use regex::Regex;
-use serde_json;
+use reqwest::StatusCode;
+use serde_json::Value;
 use std::collections::HashMap;
 use std::fs::File;
-use std::io::{BufRead, BufReader, Read};
+use std::io::{BufRead, BufReader};
 
 #[derive(Deserialize)]
 pub struct Article {
@@ -19,9 +20,8 @@ impl Article {
 
 // https://docs.rs/flate2/1.0.14/flate2/read/struct.GzDecoder.html
 pub fn extract_ndjson_from_gzip(input_file_name: &str) -> Vec<String> {
-    let mut json = String::new();
     let f = File::open(input_file_name).expect("file not found?");
-    let mut gz = GzDecoder::new(f);
+    let gz = GzDecoder::new(f);
     let buf = BufReader::new(gz);
     let lines: Vec<String> = buf.lines().map(|l| l.unwrap()).collect();
     return lines;
@@ -91,7 +91,6 @@ pub fn extract_files(article: &Article) -> Vec<String> {
     let mut files: Vec<String> = vec![];
     article.lines_from_text().iter().for_each(|line| {
         for cap in re.captures_iter(line) {
-            let cap_len = cap.len();
             let file = cap[1].to_string();
             files.push(file);
         }
@@ -100,7 +99,7 @@ pub fn extract_files(article: &Article) -> Vec<String> {
 }
 
 // ch03-25. テンプレートの抽出
-pub fn extract_basic_info(article: &Article) -> HashMap<String, String> {
+pub fn extract_basic_info<T: Cleaner>(article: &Article, cleaner: T) -> HashMap<String, String> {
     let re = Regex::new(r"(?ms)(?:^\{\{基礎情報.+?$)(.+?)(?:^}}$)").expect("syntax error in regex");
     let mut basic_info: HashMap<String, String> = HashMap::new();
     for cap in re.captures_iter(article.text.as_str()) {
@@ -111,7 +110,10 @@ pub fn extract_basic_info(article: &Article) -> HashMap<String, String> {
         for entry in entries {
             if entry.trim().len() > 0 {
                 for cap_entry in re_entry.captures_iter(entry.trim()) {
-                    basic_info.insert(cap_entry[1].to_string(), cap_entry[2].to_string());
+                    basic_info.insert(
+                        cap_entry[1].to_string(),
+                        cleaner.remove_markup(cap_entry[2].as_ref()),
+                    );
                 }
             }
         }
@@ -120,19 +122,144 @@ pub fn extract_basic_info(article: &Article) -> HashMap<String, String> {
     return basic_info;
 }
 
+pub trait Cleaner {
+    fn remove_markup(&self, original: &str) -> String;
+}
+
+struct NoneCleaner {}
+
+impl Cleaner for NoneCleaner {
+    fn remove_markup(&self, original: &str) -> String {
+        return original.to_string();
+    }
+}
+
 // ch03-26. 強調マークアップの除去
+struct StrongCleaner {}
+
+impl Cleaner for StrongCleaner {
+    fn remove_markup(&self, original: &str) -> String {
+        let re = Regex::new(r"('{2,5})").expect("syntax error in regex");
+        return re.replace_all(original, "").to_string();
+    }
+}
+
 // ch03-27. 内部リンクの除去
+struct LinkCleaner {
+    chain: StrongCleaner,
+}
+
+impl Cleaner for LinkCleaner {
+    fn remove_markup(&self, original: &str) -> String {
+        let no_strong = self.chain.remove_markup(original);
+        if no_strong.contains("[[") {
+            let mut text = String::from("");
+            let re = Regex::new(r"(?:\[\[)(?P<link>.+?)(?:\]\])").expect("syntax error in regex");
+            text.push_str(re.replace_all(no_strong.as_str(), "$link").as_ref());
+            return text;
+        } else {
+            return no_strong;
+        }
+    }
+}
+
 // ch03-28. MediaWikiマークアップの除去
+//TODO...
+
 // ch03-29. 国旗画像のURLを取得する
+pub fn get_country_flag_url(basic_info: HashMap<String, String>) -> Option<String> {
+    return match basic_info.get("国旗画像") {
+        Some(file_name) => Some(get_image_url(file_name)),
+        None => None,
+    };
+}
+
+fn get_image_url(file_name: &str) -> String {
+    let mut _rt = tokio::runtime::Runtime::new().expect("Fail initializing runtime");
+    let task = call_api(file_name);
+    _rt.block_on(task).expect("Something wrong...")
+}
+
+#[derive(Debug, Deserialize)]
+pub struct MediaWikiResponse {
+    query: Value,
+}
+
+impl MediaWikiResponse {
+    pub fn get_url(&self) -> Option<String> {
+        let mut url = String::new();
+        let obj = self.query.as_object().unwrap();
+        if let Some(pages) = obj.get("pages") {
+            let key = pages.as_object().unwrap().keys().next();
+            if let Some(key) = key {
+                if let Some(page) = pages.get(key) {
+                    if let Some(page_obj) = page.as_object() {
+                        if let Some(imageinfo_obj) = page_obj.get("imageinfo") {
+                            if let Some(imageinfos) = imageinfo_obj.as_array() {
+                                let value = imageinfos.first().unwrap();
+                                if let Some(v) = value.as_object().unwrap().get("url") {
+                                    url.push_str(v.as_str().unwrap());
+                                    return Some(url);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        return None;
+    }
+}
+
+async fn call_api(file_name: &str) -> Result<String, String> {
+    let client = reqwest::Client::new();
+    let file_name2 = format!("File:{}", file_name);
+    //let mut file_name2 = file_name.to_string().replace(" ", "_");
+    let query = [
+        ("action", "query"),
+        ("format", "json"),
+        ("prop", "imageinfo"),
+        ("iiprop", "url"),
+        ("titles", file_name2.as_str()),
+    ];
+    let result = client
+        .get("https://en.wikipedia.org/w/api.php")
+        .query(&query)
+        .send()
+        .await;
+
+    match result {
+        Ok(response) => match response.status() {
+            StatusCode::OK => {
+                let body = response.json::<MediaWikiResponse>().await;
+                match body {
+                    Ok(obj) => match obj.get_url() {
+                        Some(url) => Ok(url),
+                        None => Err(String::from("Cannot get url...")),
+                    },
+                    Err(error) => Err(error.to_string()),
+                }
+            }
+            _ => Err(String::from(format!(
+                "Status code is {}.",
+                response.status()
+            ))),
+        },
+        Err(error) => {
+            let error_msg = format!("Error occurred... {:?}", error);
+            println!("{}", error_msg.as_str());
+            Err(error_msg)
+        }
+    }
+}
 
 #[cfg(test)]
 mod tests {
-    use chapter03::answer::{
+    use crate::chapter03::answer::{
         extract_basic_info, extract_categories, extract_category_lines, extract_files,
-        extract_ndjson_from_gzip, extract_sections, load_json, Article, Section,
+        extract_ndjson_from_gzip, extract_sections, get_country_flag_url, load_json, LinkCleaner,
+        NoneCleaner, Section, StrongCleaner,
     };
-    use std::fs::OpenOptions;
-    use std::io::Write;
 
     const INPUT_PATH: &str = "data/jawiki-country.json.gz";
     const KEYWORD: &str = "イギリス";
@@ -153,7 +280,7 @@ mod tests {
     }
 
     #[test]
-    pub fn success_21_exract_category_lines() {
+    pub fn success_21_extract_category_lines() {
         let articles = load_json(INPUT_PATH, KEYWORD);
         let article = articles.get(0);
         let expected_lines = vec![
@@ -182,7 +309,7 @@ mod tests {
     }
 
     #[test]
-    pub fn success_22_exract_categories() {
+    pub fn success_22_extract_categories() {
         let articles = load_json(INPUT_PATH, KEYWORD);
         let article = articles.get(0);
         let expected_lines = vec![
@@ -274,7 +401,7 @@ mod tests {
     }
 
     #[test]
-    pub fn success_23_exract_sections() {
+    pub fn success_23_extract_sections() {
         let articles = load_json(INPUT_PATH, KEYWORD);
         let article = articles.get(0);
         let expected_lines = expected_lines_23();
@@ -328,7 +455,7 @@ mod tests {
     }
 
     #[test]
-    pub fn success_24_exract_files() {
+    pub fn success_24_extract_files() {
         let articles = load_json(INPUT_PATH, KEYWORD);
         let article = articles.get(0);
         let expected_lines = expected_lines_24();
@@ -427,13 +554,208 @@ mod tests {
         match article {
             None => panic!("fail to load {} article", KEYWORD),
             Some(target) => {
-                let basic_info = extract_basic_info(target);
+                let basic_info = extract_basic_info(target, NoneCleaner {});
                 assert_eq!(expected_lines.len(), basic_info.len());
                 for actual in basic_info {
                     let hoge = (actual.0.as_str(), actual.1.as_str());
                     assert!(expected_lines.contains(&hoge), format!("{:?}", hoge));
                     println!("[{:?}]", actual);
                 }
+            }
+        }
+    }
+
+    fn expected_lines_26() -> Vec<(&'static str, &'static str)> {
+        vec![
+            ("略名", "イギリス"),
+            ("日本語国名", "グレートブリテン及び北アイルランド連合王国"),
+            ("公式国名", "{{lang|en|United Kingdom of Great Britain and Northern Ireland}}<ref>英語以外での正式国名:<br />
+*{{lang|gd|An Rìoghachd Aonaichte na Breatainn Mhòr agus Eirinn mu Thuath}}（[[スコットランド・ゲール語]]）
+*{{lang|cy|Teyrnas Gyfunol Prydain Fawr a Gogledd Iwerddon}}（[[ウェールズ語]]）
+*{{lang|ga|Ríocht Aontaithe na Breataine Móire agus Tuaisceart na hÉireann}}（[[アイルランド語]]）
+*{{lang|kw|An Rywvaneth Unys a Vreten Veur hag Iwerdhon Glédh}}（[[コーンウォール語]]）
+*{{lang|sco|Unitit Kinrick o Great Breetain an Northren Ireland}}（[[スコットランド語]]）
+**{{lang|sco|Claught Kängrick o Docht Brätain an Norlin Airlann}}、{{lang|sco|Unitet Kängdom o Great Brittain an Norlin Airlann}}（アルスター・スコットランド語）</ref>"),
+            ("国旗画像", "Flag of the United Kingdom.svg"),
+            ("国章画像", "[[ファイル:Royal Coat of Arms of the United Kingdom.svg|85px|イギリスの国章]]"),
+            ("国章リンク", "（[[イギリスの国章|国章]]）"),
+            ("標語", "{{lang|fr|[[Dieu et mon droit]]}}<br />（[[フランス語]]:[[Dieu et mon droit|神と我が権利]]）"),
+            ("国歌", "[[女王陛下万歳|{{lang|en|God Save the Queen}}]]{{en icon}}<br />神よ女王を護り賜え<br />{{center|[[ファイル:United States Navy Band - God Save the Queen.ogg]]}}"),
+            ("地図画像", "Europe-UK.svg"),
+            ("位置画像", "United Kingdom (+overseas territories) in the World (+Antarctica claims).svg"),
+            ("公用語", "[[英語]]"),
+            ("首都", "[[ロンドン]]（事実上）"),
+            ("最大都市", "ロンドン"),
+            ("元首等肩書", "[[イギリスの君主|女王]]"),
+            ("元首等氏名", "[[エリザベス2世]]"),
+            ("首相等肩書", "[[イギリスの首相|首相]]"),
+            ("首相等氏名", "[[ボリス・ジョンソン]]"),
+            ("他元首等肩書1", "[[貴族院 (イギリス)|貴族院議長]]"),
+            ("他元首等氏名1", "[[:en:Norman Fowler, Baron Fowler|ノーマン・ファウラー]]"),
+            ("他元首等肩書2", "[[庶民院 (イギリス)|庶民院議長]]"),
+            ("他元首等氏名2", "{{仮リンク|リンゼイ・ホイル|en|Lindsay Hoyle}}"),
+            ("他元首等肩書3", "[[連合王国最高裁判所|最高裁判所長官]]"),
+            ("他元首等氏名3", "[[:en:Brenda Hale, Baroness Hale of Richmond|ブレンダ・ヘイル]]"),
+            ("面積順位", "76"),
+            ("面積大きさ", "1 E11"),
+            ("面積値", "244,820"),
+            ("水面積率", "1.3%"),
+            ("人口統計年", "2018"),
+            ("人口順位", "22"),
+            ("人口大きさ", "1 E7"),
+            ("人口値", "6643万5600<ref>{{Cite web|url=https://www.ons.gov.uk/peoplepopulationandcommunity/populationandmigration/populationestimates|title=Population estimates - Office for National Statistics|accessdate=2019-06-26|date=2019-06-26}}</ref>"),
+            ("人口密度値", "271"),
+            ("GDP統計年元", "2012"),
+            ("GDP値元", "1兆5478億<ref name=\"imf-statistics-gdp\">[http://www.imf.org/external/pubs/ft/weo/2012/02/weodata/weorept.aspx?pr.x=70&pr.y=13&sy=2010&ey=2012&scsm=1&ssd=1&sort=country&ds=.&br=1&c=112&s=NGDP%2CNGDPD%2CPPPGDP%2CPPPPC&grp=0&a=IMF>Data and Statistics>World Economic Outlook Databases>By Countrise>United Kingdom]</ref>"),
+            ("GDP統計年MER", "2012"),
+            ("GDP順位MER", "6"),
+            ("GDP値MER", "2兆4337億<ref name=\"imf-statistics-gdp\" />"),
+            ("GDP統計年", "2012"),
+            ("GDP順位", "6"),
+            ("GDP値", "2兆3162億<ref name=\"imf-statistics-gdp\" />"),
+            ("GDP/人", "36,727<ref name=\"imf-statistics-gdp\" />"),
+            ("建国形態", "建国"),
+            ("確立形態1", "[[イングランド王国]]／[[スコットランド王国]]<br />（両国とも[[合同法 (1707年)|1707年合同法]]まで）"),
+            ("確立年月日1", "927年／843年"),
+            ("確立形態2", "[[グレートブリテン王国]]成立<br />（1707年合同法）"),
+            ("確立年月日2", "1707年{{0}}5月{{0}}1日"),
+            ("確立形態3", "[[グレートブリテン及びアイルランド連合王国]]成立<br />（[[合同法 (1800年)|1800年合同法]]）"),
+            ("確立年月日3", "1801年{{0}}1月{{0}}1日"),
+            ("確立形態4", "現在の国号「グレートブリテン及び北アイルランド連合王国」に変更"),
+            ("確立年月日4", "1927年{{0}}4月12日"),
+            ("通貨", "[[スターリング・ポンド|UKポンド]] (£)"),
+            ("通貨コード", "GBP"),
+            ("時間帯", "±0"),
+            ("夏時間", "+1"),
+            ("ISO 3166-1", "GB / GBR"),
+            ("ccTLD", "[[.uk]] / [[.gb]]<ref>使用は.ukに比べ圧倒的少数。</ref>"),
+            ("国際電話番号", "44"),
+            ("注記", "<references/>"),
+        ]
+    }
+
+    #[test]
+    pub fn success_26_remove_strong() {
+        let articles = load_json(INPUT_PATH, KEYWORD);
+        let article = articles.get(0);
+        let expected_lines = expected_lines_26();
+        match article {
+            None => panic!("fail to load {} article", KEYWORD),
+            Some(target) => {
+                let basic_info = extract_basic_info(target, StrongCleaner {});
+                assert_eq!(expected_lines.len(), basic_info.len());
+                for actual in basic_info {
+                    let hoge = (actual.0.as_str(), actual.1.as_str());
+                    assert!(expected_lines.contains(&hoge), format!("{:?}", hoge));
+                    println!("[{:?}]", actual);
+                }
+            }
+        }
+    }
+
+    fn expected_lines_27() -> Vec<(&'static str, &'static str)> {
+        vec![
+            ("略名", "イギリス"),
+            ("日本語国名", "グレートブリテン及び北アイルランド連合王国"),
+            ("公式国名", "{{lang|en|United Kingdom of Great Britain and Northern Ireland}}<ref>英語以外での正式国名:<br />
+*{{lang|gd|An Rìoghachd Aonaichte na Breatainn Mhòr agus Eirinn mu Thuath}}（スコットランド・ゲール語）
+*{{lang|cy|Teyrnas Gyfunol Prydain Fawr a Gogledd Iwerddon}}（ウェールズ語）
+*{{lang|ga|Ríocht Aontaithe na Breataine Móire agus Tuaisceart na hÉireann}}（アイルランド語）
+*{{lang|kw|An Rywvaneth Unys a Vreten Veur hag Iwerdhon Glédh}}（コーンウォール語）
+*{{lang|sco|Unitit Kinrick o Great Breetain an Northren Ireland}}（スコットランド語）
+**{{lang|sco|Claught Kängrick o Docht Brätain an Norlin Airlann}}、{{lang|sco|Unitet Kängdom o Great Brittain an Norlin Airlann}}（アルスター・スコットランド語）</ref>"),
+            ("国旗画像", "Flag of the United Kingdom.svg"),
+            ("国章画像", "ファイル:Royal Coat of Arms of the United Kingdom.svg|85px|イギリスの国章"),
+            ("国章リンク", "（イギリスの国章|国章）"),
+            ("標語", "{{lang|fr|Dieu et mon droit}}<br />（フランス語:Dieu et mon droit|神と我が権利）"),
+            ("国歌", "女王陛下万歳|{{lang|en|God Save the Queen}}{{en icon}}<br />神よ女王を護り賜え<br />{{center|ファイル:United States Navy Band - God Save the Queen.ogg}}"),
+            ("地図画像", "Europe-UK.svg"),
+            ("位置画像", "United Kingdom (+overseas territories) in the World (+Antarctica claims).svg"),
+            ("公用語", "英語"),
+            ("首都", "ロンドン（事実上）"),
+            ("最大都市", "ロンドン"),
+            ("元首等肩書", "イギリスの君主|女王"),
+            ("元首等氏名", "エリザベス2世"),
+            ("首相等肩書", "イギリスの首相|首相"),
+            ("首相等氏名", "ボリス・ジョンソン"),
+            ("他元首等肩書1", "貴族院 (イギリス)|貴族院議長"),
+            ("他元首等氏名1", ":en:Norman Fowler, Baron Fowler|ノーマン・ファウラー"),
+            ("他元首等肩書2", "庶民院 (イギリス)|庶民院議長"),
+            ("他元首等氏名2", "{{仮リンク|リンゼイ・ホイル|en|Lindsay Hoyle}}"),
+            ("他元首等肩書3", "連合王国最高裁判所|最高裁判所長官"),
+            ("他元首等氏名3", ":en:Brenda Hale, Baroness Hale of Richmond|ブレンダ・ヘイル"),
+            ("面積順位", "76"),
+            ("面積大きさ", "1 E11"),
+            ("面積値", "244,820"),
+            ("水面積率", "1.3%"),
+            ("人口統計年", "2018"),
+            ("人口順位", "22"),
+            ("人口大きさ", "1 E7"),
+            ("人口値", "6643万5600<ref>{{Cite web|url=https://www.ons.gov.uk/peoplepopulationandcommunity/populationandmigration/populationestimates|title=Population estimates - Office for National Statistics|accessdate=2019-06-26|date=2019-06-26}}</ref>"),
+            ("人口密度値", "271"),
+            ("GDP統計年元", "2012"),
+            ("GDP値元", "1兆5478億<ref name=\"imf-statistics-gdp\">[http://www.imf.org/external/pubs/ft/weo/2012/02/weodata/weorept.aspx?pr.x=70&pr.y=13&sy=2010&ey=2012&scsm=1&ssd=1&sort=country&ds=.&br=1&c=112&s=NGDP%2CNGDPD%2CPPPGDP%2CPPPPC&grp=0&a=IMF>Data and Statistics>World Economic Outlook Databases>By Countrise>United Kingdom]</ref>"),
+            ("GDP統計年MER", "2012"),
+            ("GDP順位MER", "6"),
+            ("GDP値MER", "2兆4337億<ref name=\"imf-statistics-gdp\" />"),
+            ("GDP統計年", "2012"),
+            ("GDP順位", "6"),
+            ("GDP値", "2兆3162億<ref name=\"imf-statistics-gdp\" />"),
+            ("GDP/人", "36,727<ref name=\"imf-statistics-gdp\" />"),
+            ("建国形態", "建国"),
+            ("確立形態1", "イングランド王国／スコットランド王国<br />（両国とも合同法 (1707年)|1707年合同法まで）"),
+            ("確立年月日1", "927年／843年"),
+            ("確立形態2", "グレートブリテン王国成立<br />（1707年合同法）"),
+            ("確立年月日2", "1707年{{0}}5月{{0}}1日"),
+            ("確立形態3", "グレートブリテン及びアイルランド連合王国成立<br />（合同法 (1800年)|1800年合同法）"),
+            ("確立年月日3", "1801年{{0}}1月{{0}}1日"),
+            ("確立形態4", "現在の国号「グレートブリテン及び北アイルランド連合王国」に変更"),
+            ("確立年月日4", "1927年{{0}}4月12日"),
+            ("通貨", "スターリング・ポンド|UKポンド (£)"),
+            ("通貨コード", "GBP"),
+            ("時間帯", "±0"),
+            ("夏時間", "+1"),
+            ("ISO 3166-1", "GB / GBR"),
+            ("ccTLD", ".uk / .gb<ref>使用は.ukに比べ圧倒的少数。</ref>"),
+            ("国際電話番号", "44"),
+            ("注記", "<references/>"),
+        ]
+    }
+
+    #[test]
+    pub fn success_27_remove_internal_link() {
+        let articles = load_json(INPUT_PATH, KEYWORD);
+        let article = articles.get(0);
+        let expected_lines = expected_lines_27();
+        match article {
+            None => panic!("fail to load {} article", KEYWORD),
+            Some(target) => {
+                let basic_info = extract_basic_info(
+                    target,
+                    LinkCleaner {
+                        chain: StrongCleaner {},
+                    },
+                );
+                assert_eq!(expected_lines.len(), basic_info.len());
+                for actual in basic_info {
+                    let hoge = (actual.0.as_str(), actual.1.as_str());
+                    assert!(expected_lines.contains(&hoge), format!("{:?}", hoge));
+                    println!("[{:?}]", actual);
+                }
+            }
+        }
+    }
+
+    #[test]
+    pub fn success_29_get_image_url() {
+        let articles = load_json(INPUT_PATH, KEYWORD);
+        let article = articles.get(0);
+        let expected_url =
+            "https://upload.wikimedia.org/wikipedia/en/a/ae/Flag_of_the_United_Kingdom.svg";
+        match get_country_flag_url(extract_basic_info(article.unwrap(), NoneCleaner {})) {
+            None => panic!("Cannot get image url..."),
+            Some(url) => {
+                assert_eq!(url, expected_url);
             }
         }
     }

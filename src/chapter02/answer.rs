@@ -1,5 +1,5 @@
 use std::cmp::Ordering;
-use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
+use std::collections::{BTreeSet, HashMap, HashSet};
 use std::fs::{File, OpenOptions};
 use std::io::{BufRead, BufReader, Read, Write};
 
@@ -32,7 +32,7 @@ pub fn extract_column(input_file_name: &str, num: usize, output_file_name: &str)
     read_buf.lines().for_each(|line| match line {
         Ok(line) => {
             let columns: Vec<_> = line.split('\t').collect();
-            writeln!(output_f, "{}", columns[num]);
+            writeln!(output_f, "{}", columns[num]).expect("error");
             output_f.flush().expect("Error during flush");
         }
         Err(_) => panic!("parse error "),
@@ -54,7 +54,7 @@ pub fn merge_files(col1_file: &str, col2_file: &str, output_file_name: &str) {
         .for_each(|(col1, col2)| {
             let col1 = col1.expect("parse error col1");
             let col2 = col2.expect("parse error col2");
-            writeln!(output_f, "{}\t{}", col1, col2);
+            writeln!(output_f, "{}\t{}", col1, col2).expect("error");
             output_f.flush().expect("Error during flush");
         });
 }
@@ -103,7 +103,7 @@ pub fn split_files(
             let line = lines.next();
             if let Some(line_rs) = line {
                 if let Ok(line_str) = line_rs {
-                    writeln!(output_f, "{}", line_str);
+                    writeln!(output_f, "{}", line_str).expect("error");
                 }
             }
             current = current + 1;
@@ -225,7 +225,7 @@ pub fn sort_on_frequency(input_file_name: &str) -> String {
 // -- Unit test -----
 #[cfg(test)]
 mod tests {
-    use chapter02::answer::{
+    use crate::chapter02::answer::{
         count_uniq_words, extract_column, head, merge_files, sort_on_col3, sort_on_frequency,
         split_files, tab_2_space, tail, word_count,
     };

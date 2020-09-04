@@ -190,34 +190,37 @@ pub fn typoglycemia(text: &str) -> String {
 // -- Unit test -----
 #[cfg(test)]
 mod tests {
-    use chapter01::answer;
-    use chapter01::answer::{cipher, typoglycemia};
+    use crate::chapter01::answer::{
+        char_ngram, char_ngram_set, chemical_symbols, cipher, difference_ngram_sets,
+        generate_sentence, intersection_ngram_sets, mix_two_str, odd_idx_str, pi, reverse_str,
+        typoglycemia, union_ngram_sets, word_ngram,
+    };
     use std::collections::BTreeMap;
 
     #[test]
     fn success_00_reverse_str() {
         let original = "hoge";
         let expected = "egoh";
-        assert_eq!(expected, answer::reverse_str(original));
+        assert_eq!(expected, reverse_str(original));
 
         let original2 = "ほげ";
         let expected2 = "げほ";
-        assert_eq!(expected2, answer::reverse_str(original2));
+        assert_eq!(expected2, reverse_str(original2));
 
         let original3 = "";
         let expected3 = "";
-        assert_eq!(expected3, answer::reverse_str(original3));
+        assert_eq!(expected3, reverse_str(original3));
     }
 
     #[test]
     fn success_01_odd_idx_str() {
         let original = "パタトクカシーー";
         let expected = "パトカー";
-        assert_eq!(expected, answer::odd_idx_str(original));
+        assert_eq!(expected, odd_idx_str(original));
 
         let original1 = "ほげほ";
         let expected1 = "ほほ";
-        assert_eq!(expected1, answer::odd_idx_str(original1));
+        assert_eq!(expected1, odd_idx_str(original1));
     }
 
     #[test]
@@ -225,29 +228,29 @@ mod tests {
         let original_1 = "パトカー";
         let original_2 = "タクシー";
         let expected = "パタトクカシーー";
-        assert_eq!(expected, answer::mix_two_str(original_1, original_2));
+        assert_eq!(expected, mix_two_str(original_1, original_2));
 
         let original1_1 = "パトカ";
         let original1_2 = "タクシ？";
         let expected1 = "パタトクカシ？";
-        assert_eq!(expected1, answer::mix_two_str(original1_1, original1_2));
+        assert_eq!(expected1, mix_two_str(original1_1, original1_2));
 
         let original2_1 = "パトカ！！";
         let original2_2 = "タクシ";
         let expected2 = "パタトクカシ！！";
-        assert_eq!(expected2, answer::mix_two_str(original2_1, original2_2));
+        assert_eq!(expected2, mix_two_str(original2_1, original2_2));
     }
 
     #[test]
     fn success_03_pi() {
         let original = "Now I need a drink, alcoholic of course, after the heavy lectures involving quantum mechanics.";
         let expected: Vec<usize> = vec![3, 1, 4, 1, 5, 9, 2, 6, 5, 3, 5, 8, 9, 7, 9];
-        assert_eq!(expected, answer::pi(original));
+        assert_eq!(expected, pi(original));
 
         let original1 = "This is    a \
         pen...";
         let expected1 = vec![4, 2, 1, 3];
-        assert_eq!(expected1, answer::pi(original1));
+        assert_eq!(expected1, pi(original1));
     }
 
     #[test]
@@ -264,7 +267,7 @@ mod tests {
             expected.insert(symbol.to_string(), idx);
         }
 
-        let actual = answer::chemical_symbols(original, idx_one_symbols);
+        let actual = chemical_symbols(original, idx_one_symbols);
         assert_eq!(expected, actual);
         // FIXME add failure test case
     }
@@ -275,14 +278,14 @@ mod tests {
         let n = 2;
         let expected_word_tokens: Vec<Vec<&str>> =
             vec![vec!["I", "am"], vec!["am", "an"], vec!["an", "NLPer"]];
-        let actual_word_tokens = answer::word_ngram(original, n);
+        let actual_word_tokens = word_ngram(original, n);
         assert_eq!(expected_word_tokens, actual_word_tokens);
 
         // char_ngram
         let expected_char_tokens: Vec<&str> = vec![
             "I ", " a", "am", "m ", " a", "an", "n ", " N", "NL", "LP", "Pe", "er",
         ];
-        let actual_char_tokens = answer::char_ngram(original, n);
+        let actual_char_tokens = char_ngram(original, n);
         assert_eq!(expected_char_tokens, actual_char_tokens);
     }
 
@@ -296,13 +299,13 @@ mod tests {
 
         assert_eq!(
             expected1_values,
-            answer::char_ngram_set(original1, 2)
+            char_ngram_set(original1, 2)
                 .into_iter()
                 .collect::<Vec<String>>()
         );
         assert_eq!(
             expected2_values,
-            answer::char_ngram_set(original2, 2)
+            char_ngram_set(original2, 2)
                 .into_iter()
                 .collect::<Vec<String>>()
         );
@@ -312,52 +315,40 @@ mod tests {
         ];
         assert_eq!(
             expected_union,
-            answer::union_ngram_sets(
-                answer::char_ngram_set(original1, 2),
-                &answer::char_ngram_set(original2, 2)
-            )
-            .into_iter()
-            .collect::<Vec<String>>()
+            union_ngram_sets(char_ngram_set(original1, 2), &char_ngram_set(original2, 2))
+                .into_iter()
+                .collect::<Vec<String>>()
         );
 
         let expected_intersection = vec!["ap", "ar", "pa", "ra"];
         assert_eq!(
             expected_intersection,
-            answer::intersection_ngram_sets(
-                answer::char_ngram_set(original1, 2),
-                &answer::char_ngram_set(original2, 2)
-            )
-            .into_iter()
-            .collect::<Vec<String>>()
+            intersection_ngram_sets(char_ngram_set(original1, 2), &char_ngram_set(original2, 2))
+                .into_iter()
+                .collect::<Vec<String>>()
         );
 
         // origina1 - original2
         let expected_difference_1_minus_2 = vec!["ad", "di", "is", "se"];
         assert_eq!(
             expected_difference_1_minus_2,
-            answer::difference_ngram_sets(
-                answer::char_ngram_set(original1, 2),
-                &answer::char_ngram_set(original2, 2)
-            )
-            .into_iter()
-            .collect::<Vec<String>>()
+            difference_ngram_sets(char_ngram_set(original1, 2), &char_ngram_set(original2, 2))
+                .into_iter()
+                .collect::<Vec<String>>()
         );
 
         // original2 - origina1
         let expected_difference_2_minus_1 = vec!["ag", "gr", "ph"];
         assert_eq!(
             expected_difference_2_minus_1,
-            answer::difference_ngram_sets(
-                answer::char_ngram_set(original2, 2),
-                &answer::char_ngram_set(original1, 2)
-            )
-            .into_iter()
-            .collect::<Vec<String>>()
+            difference_ngram_sets(char_ngram_set(original2, 2), &char_ngram_set(original1, 2))
+                .into_iter()
+                .collect::<Vec<String>>()
         );
 
         // find "se" from each set
-        assert_eq!(true, answer::char_ngram_set(original1, 2).contains("se"));
-        assert_eq!(false, answer::char_ngram_set(original2, 2).contains("se"));
+        assert_eq!(true, char_ngram_set(original1, 2).contains("se"));
+        assert_eq!(false, char_ngram_set(original2, 2).contains("se"));
     }
 
     #[test]
@@ -367,7 +358,7 @@ mod tests {
         let original_z = 2.0;
         assert_eq!(
             "0時のyは2.0",
-            answer::generate_sentence(original_x, original_y, original_z)
+            generate_sentence(original_x, original_y, original_z)
         );
     }
 
