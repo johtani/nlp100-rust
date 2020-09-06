@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{BTreeMap, BinaryHeap, HashMap};
 use std::fs::File;
 use std::io::Write;
 use std::io::{BufRead, BufReader};
@@ -212,7 +212,7 @@ impl Token {
 fn count_token_frequency() {
     let mut cmd = TokenCounter {
         out: File::create("./data/chap04/token_freq.txt").unwrap(),
-        hashmap: HashMap::new(),
+        terms_count: BTreeMap::new(),
     };
     load_json(&mut cmd);
     cmd.print();
@@ -220,32 +220,52 @@ fn count_token_frequency() {
 
 struct TokenCounter {
     out: File,
-    hashmap: HashMap<String, u32>,
+    terms_count: BTreeMap<String, u32>,
 }
 
 impl TokenCounter {
     fn print(&self) {
-        for (key, value) in &self.hashmap {
+        for (key, value) in &self.terms_count {
             writeln!(&self.out, "{}  {}", key, value);
             println!("{}  {}", key, value);
         }
+    }
+
+    fn print_top10(&mut self) {
+        let mut key_values: Vec<(&String, &u32)> =
+            self.terms_count.iter().collect::<Vec<(&String, &u32)>>();
+        key_values.sort_by(|x, y| y.1.cmp(&x.1));
+        key_values.iter().take(10).for_each(|(key, value)| {
+            writeln!(&self.out, "{}  {}", key, value);
+            println!("{}  {}", key, value);
+        });
     }
 }
 
 impl Command for TokenCounter {
     fn execute(&mut self, tokens: &Vec<Token>) {
         tokens.iter().for_each(|token| {
-            let value = self.hashmap.get(token.surface.as_str());
+            let value = self.terms_count.get(token.surface.as_str());
             let count = match value {
                 None => 1,
                 Some(counter) => counter + 1,
             };
-            self.hashmap.insert(token.surface.to_string(), count);
+            self.terms_count.insert(token.surface.to_string(), count);
         });
     }
 }
 
 // ch04-36. 頻度上位10語
+
+fn count_token_frequency_top10() {
+    let mut cmd = TokenCounter {
+        out: File::create("./data/chap04/token_freq.txt").unwrap(),
+        terms_count: BTreeMap::new(),
+    };
+    load_json(&mut cmd);
+    cmd.print_top10();
+}
+
 // ch04-37. 「猫」と共起頻度の高い上位10語
 // ch04-38. ヒストグラム
 // ch04-39. Zipfの法則
@@ -253,8 +273,9 @@ impl Command for TokenCounter {
 #[cfg(test)]
 mod tests {
     use crate::chapter04::answer::{
-        count_token_frequency, extract_a_and_b, extract_max_conjunction_of_noun, extract_verb,
-        extract_verb_base, load_and_parse_neko, tokenize,
+        count_token_frequency, count_token_frequency_top10, extract_a_and_b,
+        extract_max_conjunction_of_noun, extract_verb, extract_verb_base, load_and_parse_neko,
+        tokenize,
     };
     use std::fs::File;
     use std::path::Path;
@@ -301,5 +322,10 @@ mod tests {
     #[test]
     fn success_output_token_freq() {
         count_token_frequency();
+    }
+
+    #[test]
+    fn success_output_token_freq_top10() {
+        count_token_frequency_top10();
     }
 }
