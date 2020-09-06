@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::fs::File;
 use std::io::Write;
 use std::io::{BufRead, BufReader};
@@ -166,12 +167,12 @@ struct ExtractMaxConjunctionNoun {
 }
 
 impl ExtractMaxConjunctionNoun {
-    fn print_max(&mut self) {
+    fn print_max(&self) {
         let mut max = String::new();
         for token in &self.buffer {
             max.push_str(token.surface.as_str());
         }
-        writeln!(self.out, "{}", max);
+        writeln!(&self.out, "{}", max);
         println!("{}", max);
     }
 }
@@ -208,6 +209,42 @@ impl Token {
 }
 
 // ch04-35. 単語の出現頻度
+fn count_token_frequency() {
+    let mut cmd = TokenCounter {
+        out: File::create("./data/chap04/token_freq.txt").unwrap(),
+        hashmap: HashMap::new(),
+    };
+    load_json(&mut cmd);
+    cmd.print();
+}
+
+struct TokenCounter {
+    out: File,
+    hashmap: HashMap<String, u32>,
+}
+
+impl TokenCounter {
+    fn print(&self) {
+        for (key, value) in &self.hashmap {
+            writeln!(&self.out, "{}  {}", key, value);
+            println!("{}  {}", key, value);
+        }
+    }
+}
+
+impl Command for TokenCounter {
+    fn execute(&mut self, tokens: &Vec<Token>) {
+        tokens.iter().for_each(|token| {
+            let value = self.hashmap.get(token.surface.as_str());
+            let count = match value {
+                None => 1,
+                Some(counter) => counter + 1,
+            };
+            self.hashmap.insert(token.surface.to_string(), count);
+        });
+    }
+}
+
 // ch04-36. 頻度上位10語
 // ch04-37. 「猫」と共起頻度の高い上位10語
 // ch04-38. ヒストグラム
@@ -216,8 +253,8 @@ impl Token {
 #[cfg(test)]
 mod tests {
     use crate::chapter04::answer::{
-        extract_a_and_b, extract_max_conjunction_of_noun, extract_verb, extract_verb_base,
-        load_and_parse_neko, tokenize,
+        count_token_frequency, extract_a_and_b, extract_max_conjunction_of_noun, extract_verb,
+        extract_verb_base, load_and_parse_neko, tokenize,
     };
     use std::fs::File;
     use std::path::Path;
@@ -259,5 +296,10 @@ mod tests {
     #[test]
     fn success_output_max_noun() {
         extract_max_conjunction_of_noun();
+    }
+
+    #[test]
+    fn success_output_token_freq() {
+        count_token_frequency();
     }
 }
