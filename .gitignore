@@ -17,3 +17,8 @@ Cargo.lock
 data/chap02_tmp/**
 /data/chap03/england.txt
 /data/chap03/england_newline.txt
+!/data/chap04/neko.txt.lindera.json
+!/data/chap04/noun_a_and_b.txt
+!/data/chap04/neko.txt.lindera.json.bak
+!/data/chap04/verb.txt
+!/data/chap04/verb_base.txt

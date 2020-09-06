@@ -1,14 +1,16 @@
 use std::fs::File;
-use std::io::{BufRead, BufReader, BufWriter};
+use std::io::Write;
+use std::io::{BufRead, BufReader};
 
 pub fn load_and_parse_neko() {
     let file_path = "./data/chap04/neko.txt";
     let file = File::open(file_path).unwrap();
     let buf = BufReader::new(file);
-    let out_buf = BufWriter::new(File::open("./data/chap04/neko.txt.lindera.json").unwrap());
+    let mut out = File::create("./data/chap04/neko.txt.lindera.json").unwrap();
     buf.lines().filter_map(|item| item.ok()).for_each(|line| {
+        println!("{}", line);
         let tokens = tokenize(line.as_str());
-        output_tokens(&tokens, &out_buf);
+        output_tokens(&tokens, &mut out);
     });
 }
 
@@ -20,6 +22,10 @@ struct Token {
     pos1: String,
 }
 
+fn output_tokens(tokens: &Vec<Token>, buf: &mut File) {
+    writeln!(buf, "{}", serde_json::to_string(tokens).unwrap()).expect("Error during output json");
+}
+
 fn tokenize(line: &str) -> Vec<Token> {
     let mut tokenizer = lindera::tokenizer::Tokenizer::new("normal", "");
     let lindera_tokens = tokenizer.tokenize(line);
@@ -27,9 +33,17 @@ fn tokenize(line: &str) -> Vec<Token> {
         .iter()
         .map(|lindera_token| {
             let surface = lindera_token.text.to_string();
-            let base = lindera_token.detail[6].to_string();
             let pos = lindera_token.detail[0].to_string();
-            let pos1 = lindera_token.detail[1].to_string();
+            let pos1 = if pos != "UNK" {
+                lindera_token.detail[1].to_string()
+            } else {
+                String::new()
+            };
+            let base = if pos != "UNK" {
+                lindera_token.detail[6].to_string()
+            } else {
+                String::new()
+            };
             Token {
                 surface,
                 base,
@@ -41,11 +55,116 @@ fn tokenize(line: &str) -> Vec<Token> {
     return tokens;
 }
 
-fn output_tokens(tokens: &Vec<Token>, buf: &BufWriter<File>) {}
+trait Command {
+    fn execute(&mut self, tokens: &Vec<Token>);
+}
+// ch04-30. 形態素解析結果の読み込み
+fn load_json<T: Command>(cmd: &mut T) {
+    let file = File::open("./data/chap04/neko.txt.lindera.json").unwrap();
+    let buf = BufReader::new(file);
+    buf.lines().filter_map(|item| item.ok()).for_each(|line| {
+        let tokens = parse_line_json(line.as_str());
+        cmd.execute(&tokens);
+    });
+}
+
+fn parse_line_json(line: &str) -> Vec<Token> {
+    return serde_json::from_str(line).unwrap();
+}
+
+// ch04-31. 動詞
+fn extract_verb() {
+    load_json(&mut ExtractVerv {
+        out: File::create("./data/chap04/verb.txt").unwrap(),
+    });
+}
+
+struct ExtractVerv {
+    out: File,
+}
+
+impl Command for ExtractVerv {
+    fn execute(&mut self, tokens: &Vec<Token>) {
+        tokens
+            .iter()
+            .filter(|token| token.pos == "動詞")
+            .for_each(|token| {
+                writeln!(self.out, "{}", token.surface);
+                println!("{}", token.surface);
+            });
+    }
+}
+
+// ch04-32. 動詞の原形
+fn extract_verb_base() {
+    load_json(&mut ExtractVerbBase {
+        out: File::create("./data/chap04/verb_base.txt").unwrap(),
+    });
+}
+
+struct ExtractVerbBase {
+    out: File,
+}
+
+impl Command for ExtractVerbBase {
+    fn execute(&mut self, tokens: &Vec<Token>) {
+        tokens
+            .iter()
+            .filter(|token| token.pos == "動詞")
+            .for_each(|token| {
+                writeln!(self.out, "{}", token.base).expect("Error during writeln");
+                println!("{}", token.base);
+            })
+    }
+}
+
+// ch04-33. 「AのB」
+fn extract_a_and_b() {
+    load_json(&mut ExtractAandB {
+        out: File::create("./data/chap04/noun_a_and_b.txt").unwrap(),
+    })
+}
+
+struct ExtractAandB {
+    out: File,
+}
+
+impl Command for ExtractAandB {
+    fn execute(&mut self, tokens: &Vec<Token>) {
+        let mut buffer = vec![];
+        tokens.iter().for_each(|token| {
+            if token.pos == "名詞" {
+                if buffer.is_empty() {
+                    buffer.push(token.surface.to_string());
+                } else if buffer.len() == 2 {
+                    writeln!(self.out, "{}{}", buffer.join(""), token.surface);
+                    println!("{}{}", buffer.join(""), token.surface);
+                } else {
+                    buffer.clear();
+                    buffer.push(token.surface.to_string());
+                }
+            } else if token.surface == "の" && buffer.len() == 1 {
+                buffer.push(token.surface.to_string());
+            }
+        });
+    }
+}
+
+// ch04-34. 名詞の連接
+
+// ch04-35. 単語の出現頻度
+// ch04-36. 頻度上位10語
+// ch04-37. 「猫」と共起頻度の高い上位10語
+// ch04-38. ヒストグラム
+// ch04-39. Zipfの法則
 
 #[cfg(test)]
 mod tests {
-    use crate::chapter04::answer::tokenize;
+    use crate::chapter04::answer::{
+        extract_a_and_b, extract_verb, extract_verb_base, load_and_parse_neko, tokenize,
+    };
+    use std::fs::File;
+    use std::path::Path;
 
     #[test]
     fn success_tokenize() {
@@ -58,5 +177,26 @@ mod tests {
             assert_eq!(token.pos, "名詞");
             assert_eq!(token.pos1, "固有名詞");
         }
+    }
+
+    #[test]
+    fn success_output_tokenlists() {
+        load_and_parse_neko();
+        assert!(Path::new("./data/chap04/neko.txt.lindera.json").exists());
+    }
+
+    #[test]
+    fn success_output_verv() {
+        extract_verb();
+    }
+
+    #[test]
+    fn success_output_verv_base() {
+        extract_verb_base();
+    }
+
+    #[test]
+    fn success_output_noun_a_and_b() {
+        extract_a_and_b();
     }
 }
