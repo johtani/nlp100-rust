@@ -15,7 +15,7 @@ pub fn load_and_parse_neko() {
     });
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 struct Token {
     surface: String,
     base: String,
@@ -59,14 +59,34 @@ fn tokenize(line: &str) -> Vec<Token> {
 trait Command {
     fn execute(&mut self, tokens: &Vec<Token>);
 }
+
+trait Filter {
+    fn is_target(&self, line: &str) -> bool;
+}
+
+struct NonFilter {}
+
+impl Filter for NonFilter {
+    fn is_target(&self, line: &str) -> bool {
+        true
+    }
+}
+
 // ch04-30. 形態素解析結果の読み込み
 fn load_json<T: Command>(cmd: &mut T) {
+    load_json_with_filter(cmd, &NonFilter {});
+}
+
+fn load_json_with_filter<T: Command, U: Filter>(cmd: &mut T, filter: &U) {
     let file = File::open("./data/chap04/neko.txt.lindera.json").unwrap();
     let buf = BufReader::new(file);
-    buf.lines().filter_map(|item| item.ok()).for_each(|line| {
-        let tokens = parse_line_json(line.as_str());
-        cmd.execute(&tokens);
-    });
+    buf.lines()
+        .filter_map(|item| item.ok())
+        .filter(|line| filter.is_target(line))
+        .for_each(|line| {
+            let tokens = parse_line_json(line.as_str());
+            cmd.execute(&tokens);
+        });
 }
 
 fn parse_line_json(line: &str) -> Vec<Token> {
@@ -90,7 +110,7 @@ impl Command for ExtractVerv {
             .iter()
             .filter(|token| token.pos == "動詞")
             .for_each(|token| {
-                writeln!(self.out, "{}", token.surface);
+                writeln!(self.out, "{}", token.surface).expect("Error during writeln");
                 println!("{}", token.surface);
             });
     }
@@ -138,7 +158,8 @@ impl Command for ExtractAandB {
                 if buffer.is_empty() {
                     buffer.push(token.surface.to_string());
                 } else if buffer.len() == 2 {
-                    writeln!(self.out, "{}{}", buffer.join(""), token.surface);
+                    writeln!(self.out, "{}{}", buffer.join(""), token.surface)
+                        .expect("Error during writeln");
                     println!("{}{}", buffer.join(""), token.surface);
                 } else {
                     buffer.clear();
@@ -152,46 +173,45 @@ impl Command for ExtractAandB {
 }
 
 // ch04-34. 名詞の連接
-fn extract_max_conjunction_of_noun() {
+fn extract_conjunction_of_nouns() {
     let mut cmd = ExtractMaxConjunctionNoun {
         out: File::create("./data/chap04/max_noun.txt").unwrap(),
         buffer: vec![],
     };
     load_json(&mut cmd);
-    cmd.print_max();
+    cmd.print_conjunction_nouns();
 }
 
 struct ExtractMaxConjunctionNoun {
     out: File,
-    buffer: Vec<Token>,
+    buffer: Vec<Vec<Token>>,
 }
 
 impl ExtractMaxConjunctionNoun {
-    fn print_max(&self) {
-        let mut max = String::new();
-        for token in &self.buffer {
-            max.push_str(token.surface.as_str());
-        }
-        writeln!(&self.out, "{}", max);
-        println!("{}", max);
+    fn print_conjunction_nouns(&self) {
+        self.buffer.iter().for_each(|nouns| {
+            let mut max = String::new();
+            for token in nouns.iter() {
+                max.push_str(token.surface.as_str());
+            }
+            writeln!(&self.out, "{}", max).expect("Error during writeln");
+            println!("{}", max);
+        });
     }
 }
 
 impl Command for ExtractMaxConjunctionNoun {
     fn execute(&mut self, tokens: &Vec<Token>) {
         let mut nouns = vec![];
-        tokens.iter().for_each(|token| {
+        // TODO 参照保持でどうにかしたいけどなぁ。
+        tokens.iter().map(|token| token.clone()).for_each(|token| {
             if token.pos == "名詞" {
                 nouns.push(token);
             } else {
-                if self.buffer.len() < nouns.len() {
-                    self.buffer.clear();
-                    //TODO 無駄なコピーしてる
-                    for token in &nouns {
-                        self.buffer.push(Token::from(token));
-                    }
+                if nouns.len() > 1 {
+                    self.buffer.push(nouns.clone());
                 }
-                nouns.clear();
+                nouns = vec![]
             }
         });
     }
@@ -226,8 +246,8 @@ struct TokenCounter {
 impl TokenCounter {
     fn print(&self) {
         for (key, value) in &self.terms_count {
-            writeln!(&self.out, "{}  {}", key, value);
-            println!("{}  {}", key, value);
+            writeln!(&self.out, "{}, {}", key, value).expect("Error during writeln");
+            println!("{}, {}", key, value);
         }
     }
 
@@ -236,8 +256,8 @@ impl TokenCounter {
             self.terms_count.iter().collect::<Vec<(&String, &u32)>>();
         key_values.sort_by(|x, y| y.1.cmp(&x.1));
         key_values.iter().take(10).for_each(|(key, value)| {
-            writeln!(&self.out, "{}  {}", key, value);
-            println!("{}  {}", key, value);
+            writeln!(&self.out, "{}, {}", key, value).expect("Error during writeln");
+            println!("{}, {}", key, value);
         });
     }
 }
@@ -256,10 +276,9 @@ impl Command for TokenCounter {
 }
 
 // ch04-36. 頻度上位10語
-
 fn count_token_frequency_top10() {
     let mut cmd = TokenCounter {
-        out: File::create("./data/chap04/token_freq.txt").unwrap(),
+        out: File::create("./data/chap04/token_freq_top10.txt").unwrap(),
         terms_count: BTreeMap::new(),
     };
     load_json(&mut cmd);
@@ -267,15 +286,84 @@ fn count_token_frequency_top10() {
 }
 
 // ch04-37. 「猫」と共起頻度の高い上位10語
+fn count_co_occurrence_cat_top10() {
+    let mut cmd = CoOccurrenceCat {
+        out: File::create("./data/chap04/co_occurrence_cat_top10.txt").unwrap(),
+        co_occurrence_term: BTreeMap::new(),
+    };
+    load_json_with_filter(&mut cmd, &CatFilter {});
+    cmd.print_top10();
+}
+
+struct CatFilter {}
+
+impl Filter for CatFilter {
+    fn is_target(&self, line: &str) -> bool {
+        line.contains("猫")
+    }
+}
+
+struct CoOccurrenceCat {
+    out: File,
+    co_occurrence_term: BTreeMap<String, u32>,
+}
+
+impl Command for CoOccurrenceCat {
+    fn execute(&mut self, tokens: &Vec<Token>) {
+        tokens
+            .iter()
+            .filter(|token| token.surface != "猫")
+            .for_each(|token| {
+                let value = self.co_occurrence_term.get(token.surface.as_str());
+                let count = match value {
+                    None => 1,
+                    Some(counter) => counter + 1,
+                };
+                self.co_occurrence_term
+                    .insert(token.surface.to_string(), count);
+            });
+    }
+}
+
+impl CoOccurrenceCat {
+    fn print(&self) {
+        for (key, value) in &self.co_occurrence_term {
+            writeln!(&self.out, "{}  {}", key, value).expect("Error during writeln");
+            println!("{}  {}", key, value);
+        }
+    }
+
+    fn print_top10(self) {
+        let mut key_values: Vec<(&String, &u32)> = self
+            .co_occurrence_term
+            .iter()
+            .collect::<Vec<(&String, &u32)>>();
+        key_values.sort_by(|x, y| y.1.cmp(&x.1));
+        key_values.iter().take(10).for_each(|(key, value)| {
+            writeln!(&self.out, "{}  {}", key, value).expect("Error during writeln");
+            println!("{}  {}", key, value);
+        });
+    }
+}
+
 // ch04-38. ヒストグラム
+fn count_co_occurrence_cat() {
+    let mut cmd = CoOccurrenceCat {
+        out: File::create("./data/chap04/co_occurrence_cat.txt").unwrap(),
+        co_occurrence_term: BTreeMap::new(),
+    };
+    load_json_with_filter(&mut cmd, &CatFilter {});
+    cmd.print();
+}
+
 // ch04-39. Zipfの法則
 
 #[cfg(test)]
 mod tests {
     use crate::chapter04::answer::{
-        count_token_frequency, count_token_frequency_top10, extract_a_and_b,
-        extract_max_conjunction_of_noun, extract_verb, extract_verb_base, load_and_parse_neko,
-        tokenize,
+        count_co_occurrence_cat, count_co_occurrence_cat_top10, count_token_frequency,
+        count_token_frequency_top10, extract_a_and_b, extract_conjunction_of_nouns, extract_verb,
+        extract_verb_base, load_and_parse_neko, tokenize,
     };
     use std::fs::File;
     use std::path::Path;
@@ -315,8 +403,8 @@ mod tests {
     }
 
     #[test]
-    fn success_output_max_noun() {
-        extract_max_conjunction_of_noun();
+    fn success_output_conjunction_noun() {
+        extract_conjunction_of_nouns();
     }
 
     #[test]
@@ -327,5 +415,15 @@ mod tests {
     #[test]
     fn success_output_token_freq_top10() {
         count_token_frequency_top10();
+    }
+
+    #[test]
+    fn success_output_co_occurrence_cat_top10() {
+        count_co_occurrence_cat_top10();
+    }
+
+    #[test]
+    fn success_output_co_occurrence_cat() {
+        count_co_occurrence_cat();
     }
 }
