@@ -151,6 +151,61 @@ impl Command for ExtractAandB {
 }
 
 // ch04-34. 名詞の連接
+fn extract_max_conjunction_of_noun() {
+    let mut cmd = ExtractMaxConjunctionNoun {
+        out: File::create("./data/chap04/max_noun.txt").unwrap(),
+        buffer: vec![],
+    };
+    load_json(&mut cmd);
+    cmd.print_max();
+}
+
+struct ExtractMaxConjunctionNoun {
+    out: File,
+    buffer: Vec<Token>,
+}
+
+impl ExtractMaxConjunctionNoun {
+    fn print_max(&mut self) {
+        let mut max = String::new();
+        for token in &self.buffer {
+            max.push_str(token.surface.as_str());
+        }
+        writeln!(self.out, "{}", max);
+        println!("{}", max);
+    }
+}
+
+impl Command for ExtractMaxConjunctionNoun {
+    fn execute(&mut self, tokens: &Vec<Token>) {
+        let mut nouns = vec![];
+        tokens.iter().for_each(|token| {
+            if token.pos == "名詞" {
+                nouns.push(token);
+            } else {
+                if self.buffer.len() < nouns.len() {
+                    self.buffer.clear();
+                    //TODO 無駄なコピーしてる
+                    for token in &nouns {
+                        self.buffer.push(Token::from(token));
+                    }
+                }
+                nouns.clear();
+            }
+        });
+    }
+}
+
+impl Token {
+    fn from(token: &Token) -> Token {
+        Token {
+            surface: token.surface.to_string(),
+            base: token.base.to_string(),
+            pos: token.pos.to_string(),
+            pos1: token.pos1.to_string(),
+        }
+    }
+}
 
 // ch04-35. 単語の出現頻度
 // ch04-36. 頻度上位10語
@@ -161,7 +216,8 @@ impl Command for ExtractAandB {
 #[cfg(test)]
 mod tests {
     use crate::chapter04::answer::{
-        extract_a_and_b, extract_verb, extract_verb_base, load_and_parse_neko, tokenize,
+        extract_a_and_b, extract_max_conjunction_of_noun, extract_verb, extract_verb_base,
+        load_and_parse_neko, tokenize,
     };
     use std::fs::File;
     use std::path::Path;
@@ -198,5 +254,10 @@ mod tests {
     #[test]
     fn success_output_noun_a_and_b() {
         extract_a_and_b();
+    }
+
+    #[test]
+    fn success_output_max_noun() {
+        extract_max_conjunction_of_noun();
     }
 }
