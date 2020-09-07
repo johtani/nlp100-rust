@@ -1,59 +1,72 @@
-use std::collections::{BTreeMap, BinaryHeap, HashMap};
+use metered::{metered, ResponseTime, Throughput};
+use std::collections::BTreeMap;
 use std::fs::File;
 use std::io::Write;
 use std::io::{BufRead, BufReader};
 
-pub fn load_and_parse_neko() {
-    let file_path = "./data/chap04/neko.txt";
-    let file = File::open(file_path).unwrap();
-    let buf = BufReader::new(file);
-    let mut out = File::create("./data/chap04/neko.txt.lindera.json").unwrap();
-    buf.lines().filter_map(|item| item.ok()).for_each(|line| {
-        println!("{}", line);
-        let tokens = tokenize(line.as_str());
-        output_tokens(&tokens, &mut out);
-    });
+#[derive(Default, Debug, Serialize)]
+pub struct NekoParser {
+    metric_reg: NekoParserMetricRegistry,
+}
+
+#[metered(registry = NekoParserMetricRegistry, /* default = self.metrics */ registry_expr = self.metric_reg)]
+#[measure([ResponseTime, Throughput])]
+impl NekoParser {
+    #[measure]
+    pub fn load_and_parse_neko(&self) {
+        let file_path = "./data/chap04/neko.txt";
+        let file = File::open(file_path).unwrap();
+        let buf = BufReader::new(file);
+        let mut out = File::create("./data/chap04/neko.txt.lindera.json").unwrap();
+        buf.lines().filter_map(|item| item.ok()).for_each(|line| {
+            let tokens = self.tokenize(line.as_str());
+            self.output_tokens(&tokens, &mut out);
+        });
+    }
+
+    #[measure]
+    pub fn output_tokens(&self, tokens: &Vec<Token>, buf: &mut File) {
+        writeln!(buf, "{}", serde_json::to_string(tokens).unwrap())
+            .expect("Error during output json");
+    }
+
+    #[measure]
+    pub fn tokenize(&self, line: &str) -> Vec<Token> {
+        let mut tokenizer = lindera::tokenizer::Tokenizer::new("normal", "");
+        let lindera_tokens = tokenizer.tokenize(line);
+        let tokens = lindera_tokens
+            .iter()
+            .map(|lindera_token| {
+                let surface = lindera_token.text.to_string();
+                let pos = lindera_token.detail[0].to_string();
+                let pos1 = if pos != "UNK" {
+                    lindera_token.detail[1].to_string()
+                } else {
+                    String::new()
+                };
+                let base = if pos != "UNK" {
+                    lindera_token.detail[6].to_string()
+                } else {
+                    String::new()
+                };
+                Token {
+                    surface,
+                    base,
+                    pos,
+                    pos1,
+                }
+            })
+            .collect();
+        return tokens;
+    }
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-struct Token {
+pub struct Token {
     surface: String,
     base: String,
     pos: String,
     pos1: String,
-}
-
-fn output_tokens(tokens: &Vec<Token>, buf: &mut File) {
-    writeln!(buf, "{}", serde_json::to_string(tokens).unwrap()).expect("Error during output json");
-}
-
-fn tokenize(line: &str) -> Vec<Token> {
-    let mut tokenizer = lindera::tokenizer::Tokenizer::new("normal", "");
-    let lindera_tokens = tokenizer.tokenize(line);
-    let tokens = lindera_tokens
-        .iter()
-        .map(|lindera_token| {
-            let surface = lindera_token.text.to_string();
-            let pos = lindera_token.detail[0].to_string();
-            let pos1 = if pos != "UNK" {
-                lindera_token.detail[1].to_string()
-            } else {
-                String::new()
-            };
-            let base = if pos != "UNK" {
-                lindera_token.detail[6].to_string()
-            } else {
-                String::new()
-            };
-            Token {
-                surface,
-                base,
-                pos,
-                pos1,
-            }
-        })
-        .collect();
-    return tokens;
 }
 
 trait Command {
@@ -67,7 +80,7 @@ trait Filter {
 struct NonFilter {}
 
 impl Filter for NonFilter {
-    fn is_target(&self, line: &str) -> bool {
+    fn is_target(&self, _line: &str) -> bool {
         true
     }
 }
@@ -328,8 +341,8 @@ impl Command for CoOccurrenceCat {
 impl CoOccurrenceCat {
     fn print(&self) {
         for (key, value) in &self.co_occurrence_term {
-            writeln!(&self.out, "{}  {}", key, value).expect("Error during writeln");
-            println!("{}  {}", key, value);
+            writeln!(&self.out, "{}, {}", key, value).expect("Error during writeln");
+            println!("{}, {}", key, value);
         }
     }
 
@@ -340,8 +353,8 @@ impl CoOccurrenceCat {
             .collect::<Vec<(&String, &u32)>>();
         key_values.sort_by(|x, y| y.1.cmp(&x.1));
         key_values.iter().take(10).for_each(|(key, value)| {
-            writeln!(&self.out, "{}  {}", key, value).expect("Error during writeln");
-            println!("{}  {}", key, value);
+            writeln!(&self.out, "{}, {}", key, value).expect("Error during writeln");
+            println!("{}, {}", key, value);
         });
     }
 }
@@ -363,15 +376,15 @@ mod tests {
     use crate::chapter04::answer::{
         count_co_occurrence_cat, count_co_occurrence_cat_top10, count_token_frequency,
         count_token_frequency_top10, extract_a_and_b, extract_conjunction_of_nouns, extract_verb,
-        extract_verb_base, load_and_parse_neko, tokenize,
+        extract_verb_base, NekoParser,
     };
-    use std::fs::File;
     use std::path::Path;
 
     #[test]
     fn success_tokenize() {
         let text = "関西国際空港";
-        let tokens = tokenize(text);
+        let parser = NekoParser::default();
+        let tokens = parser.tokenize(text);
         assert_eq!(tokens.len(), 1);
         for token in tokens {
             assert_eq!(token.surface, "関西国際空港");
@@ -383,7 +396,10 @@ mod tests {
 
     #[test]
     fn success_output_tokenlists() {
-        load_and_parse_neko();
+        let parser = NekoParser::default();
+        parser.load_and_parse_neko();
+        let serialized = serde_json::to_string(&parser).unwrap();
+        println!("{}", serialized);
         assert!(Path::new("./data/chap04/neko.txt.lindera.json").exists());
     }
 
