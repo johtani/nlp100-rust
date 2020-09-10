@@ -187,27 +187,20 @@ pub struct MediaWikiResponse {
 
 impl MediaWikiResponse {
     pub fn get_url(&self) -> Option<String> {
-        let mut url = String::new();
-        let obj = self.query.as_object().unwrap();
-        if let Some(pages) = obj.get("pages") {
-            let key = pages.as_object().unwrap().keys().next();
-            if let Some(key) = key {
-                if let Some(page) = pages.get(key) {
-                    if let Some(page_obj) = page.as_object() {
-                        if let Some(imageinfo_obj) = page_obj.get("imageinfo") {
-                            if let Some(imageinfos) = imageinfo_obj.as_array() {
-                                let value = imageinfos.first().unwrap();
-                                if let Some(v) = value.as_object().unwrap().get("url") {
-                                    url.push_str(v.as_str().unwrap());
-                                    return Some(url);
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        return None;
+        let pages = self.query.as_object()?.get("pages")?;
+        let key = pages.as_object().unwrap().keys().next()?;
+        return Some(String::from(
+            pages
+                .get(key)?
+                .as_object()?
+                .get("imageinfo")?
+                .as_array()?
+                .first()?
+                .as_object()
+                .unwrap()
+                .get("url")?
+                .as_str()?,
+        ));
     }
 }
 
