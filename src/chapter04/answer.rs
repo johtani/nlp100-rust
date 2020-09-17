@@ -1,4 +1,5 @@
 use metered::{metered, ResponseTime, Throughput};
+use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use std::fs::File;
 use std::io::Write;

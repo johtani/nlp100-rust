@@ -1,6 +1,7 @@
 use flate2::read::GzDecoder;
 use regex::Regex;
 use reqwest::StatusCode;
+use serde::Deserialize;
 use serde_json::Value;
 use std::collections::HashMap;
 use std::fs::File;
