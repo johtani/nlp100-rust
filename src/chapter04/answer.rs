@@ -1,4 +1,5 @@
-use metered::{metered, ResponseTime, Throughput};
+use lindera::tokenizer::Tokenizer;
+use metered::{metered, ResponseTime};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use std::fs::File;
@@ -11,7 +12,7 @@ pub struct NekoParser {
 }
 
 #[metered(registry = NekoParserMetricRegistry, /* default = self.metrics */ registry_expr = self.metric_reg)]
-#[measure([ResponseTime, Throughput])]
+#[measure([ResponseTime])]
 impl NekoParser {
     #[measure]
     pub fn load_and_parse_neko(&self) {
@@ -19,8 +20,9 @@ impl NekoParser {
         let file = File::open(file_path).unwrap();
         let buf = BufReader::new(file);
         let mut out = File::create("./data/chap04/neko.txt.lindera.json").unwrap();
+        let mut tokenizer = self.new_tokenizer();
         buf.lines().filter_map(|item| item.ok()).for_each(|line| {
-            let tokens = self.tokenize(line.as_str());
+            let tokens = self.tokenize(&mut tokenizer, line.as_str());
             self.output_tokens(&tokens, &mut out);
         });
     }
@@ -32,9 +34,8 @@ impl NekoParser {
     }
 
     #[measure]
-    pub fn tokenize(&self, line: &str) -> Vec<Token> {
-        let mut tokenizer = lindera::tokenizer::Tokenizer::new("normal", "");
-        let lindera_tokens = tokenizer.tokenize(line);
+    pub fn tokenize(&self, tokenizer: &mut Tokenizer, line: &str) -> Vec<Token> {
+        let lindera_tokens = self.call_tokenizer(line, tokenizer);
         let tokens = lindera_tokens
             .iter()
             .map(|lindera_token| {
@@ -59,6 +60,20 @@ impl NekoParser {
             })
             .collect();
         return tokens;
+    }
+
+    #[measure]
+    fn new_tokenizer(&self) -> Tokenizer {
+        lindera::tokenizer::Tokenizer::new("normal", "")
+    }
+
+    #[measure]
+    fn call_tokenizer<'a>(
+        &self,
+        line: &'a str,
+        tokenizer: &'a mut Tokenizer,
+    ) -> Vec<lindera::tokenizer::Token<'a>> {
+        tokenizer.tokenize(line)
     }
 }
 
@@ -379,13 +394,15 @@ mod tests {
         count_token_frequency_top10, extract_a_and_b, extract_conjunction_of_nouns, extract_verb,
         extract_verb_base, NekoParser,
     };
+    use lindera::tokenizer::Tokenizer;
     use std::path::Path;
 
     #[test]
     fn success_tokenize() {
         let text = "関西国際空港";
         let parser = NekoParser::default();
-        let tokens = parser.tokenize(text);
+        let mut tokenizer = Tokenizer::new("normal", "");
+        let tokens = parser.tokenize(&mut tokenizer, text);
         assert_eq!(tokens.len(), 1);
         for token in tokens {
             assert_eq!(token.surface, "関西国際空港");
